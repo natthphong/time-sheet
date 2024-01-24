@@ -2,7 +2,6 @@ package job
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
@@ -23,12 +22,9 @@ func StageCheckFunc(
 	InsertUnMatedHeaderFunc InsertUnMatedHeaderFunc,
 	GetListResultFunc GetListResultFunc,
 ) error {
-	id, err := InsertUnMatedHeaderFunc(ctx, logger)
-	logger.Info("Before", zap.Any("id", id))
-	result, err := GetListResultFunc(ctx, logger)
-	jsonStr, _ := json.Marshal(result)
-	logger.Info("After get", zap.Any("json", string(jsonStr)))
-
+	_, err := InsertUnMatedHeaderFunc(ctx, logger)
+	_, err = GetListResultFunc(ctx, logger)
+	//TODO insert detail
 	return err
 }
 

@@ -19,11 +19,6 @@ import (
 )
 
 func main() {
-
-	lambda.Start(LambdaHandler)
-}
-
-func LambdaHandler() {
 	ctx := context.Background()
 
 	config.InitTimeZone()
@@ -98,5 +93,10 @@ func LambdaHandler() {
 		job.InsertUnMatedHeader(dbPool),
 		job.GetListResult(dbPool),
 	)
+	lambda.Start(LambdaHandler)
+}
+
+func LambdaHandler() {
+
 	fmt.Print("end ")
 }
