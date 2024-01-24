@@ -8,13 +8,29 @@ import (
 )
 
 type Config struct {
-	Env       string
-	Server    Server
-	Log       Log
-	DBConfig  DBConfig
-	Kafka     Kafka
-	AWSConfig AWSConfig
-	Secret    Secret
+	Env        string
+	Server     Server
+	Log        Log
+	DBConfig   DBConfig
+	Kafka      Kafka
+	AWSConfig  AWSConfig
+	Secret     Secret
+	SFTPConfig SFTPConfig
+}
+
+type SFTPConfig struct {
+	Username     string
+	Password     string
+	Server       string
+	Destination  []DestinationConfig
+	FileNameTime string
+	Directory    string
+}
+
+type DestinationConfig struct {
+	PrefixFileName string
+	Path           string
+	Product        string
 }
 
 type Secret struct {
@@ -42,7 +58,6 @@ type DBConfig struct {
 
 type Kafka struct {
 	Internal KafkaConfig
-	External KafkaConfig
 }
 
 type RedisConfig struct {
@@ -94,17 +109,24 @@ func InitConfig() (*Config, error) {
 	viper.SetDefault("SERVER.NAME", "reconcile-daily")
 	viper.SetDefault("LOG.LEVEL", "info")
 
-	viper.SetDefault("KAFKACONFIG.INTERNAL.BROKERS", "b-1.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096,b-2.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096,b-3.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096")
-	viper.SetDefault("KAFKACONFIG.INTERNAL.GROUP", "")
-	viper.SetDefault("KAFKACONFIG.INTERNAL.VERSION", "2.8.1")
-	viper.SetDefault("KAFKACONFIG.INTERNAL.OLDEST", true)
-	viper.SetDefault("KAFKACONFIG.INTERNAL.SSAL", false)
-	viper.SetDefault("KAFKACONFIG.INTERNAL.TLS", false)
-	viper.SetDefault("KAFKACONFIG.INTERNAL.STRATEGY", "roundrobin")
-	viper.SetDefault("HTTP.TIMEOUT", "3s")
-	viper.SetDefault("HTTP.MAXIDLECONN", "100")
-	viper.SetDefault("HTTP.MAXIDLECONNPERHOST", "100")
-	viper.SetDefault("HTTP.MAXCONNPERHOST", "100")
+	viper.SetDefault("KAFKA.INTERNAL.BROKERS", "b-1.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096,b-2.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096,b-3.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096")
+	viper.SetDefault("KAFKA.INTERNAL.GROUP", "")
+	viper.SetDefault("KAFKA.INTERNAL.VERSION", "2.8.1")
+	viper.SetDefault("KAFKA.INTERNAL.OLDEST", true)
+	viper.SetDefault("KAFKA.INTERNAL.SSAL", false)
+	viper.SetDefault("KAFKA.INTERNAL.TLS", false)
+	viper.SetDefault("KAFKA.INTERNAL.STRATEGY", "roundrobin")
+	viper.SetDefault("AWSCONFIG.RDSSECRET", "AmazonEKS_RDS_Secret")
+	viper.SetDefault("AWSCONFIG.COMMONSECRET", "AmazonEKS_secret")
+	viper.SetDefault("AWSCONFIG.REGION", "ap-southeast-1")
+
+	viper.SetDefault("DBCONFIG.MAXOPENCONN", "4")
+	viper.SetDefault("DBCONFIG.MAXCONNLIFETIME", "300")
+
+	viper.SetDefault("SFTPConfig.Server", "58.137.161.63")
+	viper.SetDefault("SFTPConfig.Username", "ARRTUSR001")
+	viper.SetDefault("SFTPConfig.Password", "ARRTP@22Uat")
+	viper.SetDefault("SFTPConfig.Directory", "ARRT_NBGW_OUTBOUND")
 
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
