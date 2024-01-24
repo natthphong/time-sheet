@@ -1,0 +1,64 @@
+Log:
+  Level: "debug"
+
+Server:
+  Name: "gold-listener"
+  Port: "8080"
+
+Env: DEV
+DBConfig:
+  Host: "192.168.1.28"
+  Port: "5432"
+  Username: "postgres"
+  Password: "password"
+  Name: "postgres"
+  MaxOpenConn: 4
+  MaxConnLifeTime: 300
+Producer:
+  PaymentListener: "payment"
+  FinalTxnListener: "final"
+Kafka:
+  Internal:
+    Brokers:
+      - "localhost:29092"
+    Group: "consume_res.consume"
+    Topic:
+      - "consume_topic"
+    Producer:
+      Topic: "producer_topic"
+    Version: "3.2.0"
+    SSAL: false
+    TLS: false
+    CertPath: ""
+    Certs: ""
+    Username: ""
+    Password: ""
+    Strategy: "roundrobin"
+  External:
+    Brokers:
+      - "localhost:9092"
+    Group: "topic.consume"
+    Topic: "consume_topic"
+    Producer:
+      Topic: "producer_topic"
+    Version: "3.2.0"
+    SSAL: false
+    TLS: false
+    Oldest: true
+    CertPath: ""
+    Certs: ""
+    Username: ""
+    Password: ""
+    Strategy: "roundrobin"
+
+RedisConfig:
+  Mode: normal
+  Host: "localhost"
+  Port: 6379
+  DB: 0
+  Password: ""
+Exception:
+  Code:
+    InsufficientGoldBalance: "601"
+  Description:
+    InsufficientGoldBalance: "Failed - Insufficient gold balance"
