@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -10,17 +8,13 @@ import (
 )
 
 type Config struct {
-	Env         string
-	Server      Server
-	Log         Log
-	DBConfig    DBConfig
-	Kafka       Kafka
-	RedisConfig RedisConfig
-	HTTP        HTTP
-	Producer    Producer
-	Secret      Secret
-	AWSConfig   AWSConfig
-	Exception   Exception
+	Env       string
+	Server    Server
+	Log       Log
+	DBConfig  DBConfig
+	Kafka     Kafka
+	AWSConfig AWSConfig
+	Secret    Secret
 }
 
 type Secret struct {
@@ -93,38 +87,24 @@ type AWSConfig struct {
 	Region       string
 }
 
-type Producer struct {
-	PaymentListener  string
-	FinalTxnListener string
-}
-
-type Exception struct {
-	Code        ExceptionConfiguration
-	Description ExceptionConfiguration
-}
-
-type ExceptionConfiguration struct {
-	InsufficientGoldBalance string
-}
-
 func InitConfig() (*Config, error) {
 
-	configPath, ok := os.LookupEnv("API_CONFIG_PATH")
-	if !ok {
-		configPath = "./config"
-	}
+	viper.SetDefault("ENV", "DEV")
 
-	configName, ok := os.LookupEnv("API_CONFIG_NAME")
-	if !ok {
-		configName = "config"
-	}
+	viper.SetDefault("SERVER.NAME", "reconcile-daily")
+	viper.SetDefault("LOG.LEVEL", "info")
 
-	viper.SetConfigName(configName)
-	viper.AddConfigPath(configPath)
-
-	if err := viper.ReadInConfig(); err != nil {
-		fmt.Println("config file not found. using default/env config: " + err.Error())
-	}
+	viper.SetDefault("KAFKACONFIG.INTERNAL.BROKERS", "b-1.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096,b-2.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096,b-3.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096")
+	viper.SetDefault("KAFKACONFIG.INTERNAL.GROUP", "")
+	viper.SetDefault("KAFKACONFIG.INTERNAL.VERSION", "2.8.1")
+	viper.SetDefault("KAFKACONFIG.INTERNAL.OLDEST", true)
+	viper.SetDefault("KAFKACONFIG.INTERNAL.SSAL", false)
+	viper.SetDefault("KAFKACONFIG.INTERNAL.TLS", false)
+	viper.SetDefault("KAFKACONFIG.INTERNAL.STRATEGY", "roundrobin")
+	viper.SetDefault("HTTP.TIMEOUT", "3s")
+	viper.SetDefault("HTTP.MAXIDLECONN", "100")
+	viper.SetDefault("HTTP.MAXIDLECONNPERHOST", "100")
+	viper.SetDefault("HTTP.MAXCONNPERHOST", "100")
 
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -135,7 +115,6 @@ func InitConfig() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &c, nil
 }
 
