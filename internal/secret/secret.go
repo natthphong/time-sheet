@@ -54,7 +54,7 @@ func ConfigCommonSecret(cfg *config.Config) error {
 	}
 	if commonConfig.RedisPassword != "" {
 		//TODO WITH Redis Password
-
+		cfg.RedisConfig.Password = commonConfig.RedisPassword
 	}
 
 	decodedPrivateKey, err := base64.StdEncoding.DecodeString(cfg.Secret.Private)

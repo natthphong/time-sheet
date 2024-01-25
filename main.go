@@ -10,7 +10,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/pkg/errors"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/config"
+	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/eft"
+	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/cache"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/db"
+	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/httputil"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/logz"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/secret"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/job"
@@ -54,6 +57,24 @@ func main() {
 	}
 	defer dbPool.Close()
 
+	redisClient, err := cache.Initialize(ctx, cfg.RedisConfig)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Error cannot connect redis."))
+	}
+
+	defer redisClient.Close()
+	redisCmd := redisClient.CMD()
+
+	httpClient, err := httputil.InitHttpClient(
+		cfg.HTTP.TimeOut,
+		cfg.HTTP.MaxIdleConn,
+		cfg.HTTP.MaxIdleConnPerHost,
+		cfg.HTTP.MaxConnPerHost,
+		cfg.HTTP.CertFile,
+		cfg.HTTP.KeyFile,
+	)
+	_ = httpClient
+
 	//internalProducer, err := scramkafka.NewSyncProducer(cfg.Kafka.Internal)
 	//if err != nil {
 	//	logger.Fatal("Fail Create NewSyncProducer", zap.Error(err))
@@ -92,6 +113,23 @@ func main() {
 		logger,
 		job.InsertUnMatedHeader(dbPool),
 		job.GetListResult(dbPool),
+		job.InsertUnMatedDetail(
+			cfg.FundTransferConfig,
+			cfg.Exception,
+			cache.GetRedis(redisCmd),
+			eft.HTTPOauthFundTransferHttp(
+				httpClient,
+				"",
+				cfg.Toggle.OauthFundTransfer,
+				3,
+			),
+			eft.HTTPInquiryStatusFundTransfer(
+				httpClient,
+				"",
+				cfg.Toggle.OauthFundTransfer,
+				3,
+			),
+		),
 	)
 	lambda.Start(LambdaHandler)
 }

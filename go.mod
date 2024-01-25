@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-lambda-go v1.45.0
 	github.com/aws/aws-sdk-go v1.49.17
 	github.com/go-redis/redis/v9 v9.0.0-beta.2
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v4 v4.17.0
 	github.com/jackc/pgx/v5 v5.5.2
 	github.com/pkg/errors v0.9.1
@@ -15,6 +15,7 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/xdg-go/scram v1.1.1
 	go.uber.org/zap v1.21.0
+	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a
 
 )
 

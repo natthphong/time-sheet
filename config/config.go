@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"strings"
 	"time"
 
@@ -8,16 +9,38 @@ import (
 )
 
 type Config struct {
-	Env        string
-	Server     Server
-	Log        Log
-	DBConfig   DBConfig
-	Kafka      Kafka
-	AWSConfig  AWSConfig
-	Secret     Secret
-	SFTPConfig SFTPConfig
+	Env                string
+	Server             Server
+	Log                Log
+	DBConfig           DBConfig
+	Kafka              Kafka
+	AWSConfig          AWSConfig
+	Secret             Secret
+	SFTPConfig         SFTPConfig
+	RedisConfig        RedisConfig
+	Toggle             Toggle
+	FundTransferConfig FundTransferConfig
+	Exception          Exception
+	HTTP               HTTP
 }
 
+type Exception struct {
+	Code        ExceptionConfiguration
+	Description ExceptionConfiguration
+}
+
+type ExceptionConfiguration struct {
+	SystemError string
+}
+
+type Toggle struct {
+	OauthFundTransfer         ToggleConfiguration
+	InquiryStatusFundTransfer ToggleConfiguration
+}
+type ToggleConfiguration struct {
+	IsTest bool
+	Case   string
+}
 type SFTPConfig struct {
 	Username     string
 	Password     string
@@ -95,6 +118,8 @@ type HTTP struct {
 	MaxIdleConn        int
 	MaxIdleConnPerHost int
 	MaxConnPerHost     int
+	CertFile           string
+	KeyFile            string
 }
 type AWSConfig struct {
 	RDSSecret    string
@@ -102,12 +127,29 @@ type AWSConfig struct {
 	Region       string
 }
 
+type FundTransferConfig struct {
+	OauthFundTransferUrl         string
+	InquiryStatusFundTransferUrl string
+	ConsumerID                   string
+	ConsumerSecret               string
+	MerchantID                   string
+	FromAccountNo                string
+	Auth                         string
+	SenderName                   string
+	SenderTaxID                  string
+	TypeOfSender                 string
+	OAuthLimit                   int64
+	OauthRetry                   int
+	InquiryStatusRetry           int
+}
+
 func InitConfig() (*Config, error) {
 
 	viper.SetDefault("ENV", "DEV")
-
 	viper.SetDefault("SERVER.NAME", "reconcile-daily")
 	viper.SetDefault("LOG.LEVEL", "info")
+	viper.SetDefault("EXCEPTION.CODE", "999")
+	viper.SetDefault("EXCEPTION.DESCRIPTION", "System error")
 
 	viper.SetDefault("KAFKA.INTERNAL.BROKERS", "b-1.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096,b-2.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096,b-3.aspmsknonprod.dlm5z5.c3.kafka.ap-southeast-1.amazonaws.com:9096")
 	viper.SetDefault("KAFKA.INTERNAL.GROUP", "")
@@ -127,6 +169,33 @@ func InitConfig() (*Config, error) {
 	viper.SetDefault("SFTPConfig.Username", "ARRTUSR001")
 	viper.SetDefault("SFTPConfig.Password", "ARRTP@22Uat")
 	viper.SetDefault("SFTPConfig.Directory", "ARRT_NBGW_OUTBOUND")
+
+	viper.SetDefault("REDISCONFIG.MODE", "normal")
+	viper.SetDefault("REDISCONFIG.HOST", "redis-dev0.asp-private.arrgoldtrading.com")
+	viper.SetDefault("REDISCONFIG.PORT", "6379")
+
+	viper.SetDefault("TOGGLE.OAUTHFUNDTRANSFER.ISTEST", os.Getenv("authTest"))
+	viper.SetDefault("TOGGLE.OAUTHFUNDTRANSFER.CASE", os.Getenv("authTestCase"))
+	viper.SetDefault("TOGGLE.INQUIRYSTATUSFUNDTRANSFER.ISTEST", os.Getenv("inqTest"))
+	viper.SetDefault("TOGGLE.INQUIRYSTATUSFUNDTRANSFER.CASE", os.Getenv("inqTestCase"))
+	viper.SetDefault("FUNDTRANSFERCONFIG.0AUTGFYBDTRABSFERURL", os.Getenv("authUrl"))
+	viper.SetDefault("FUNDTRANSFERCONFIG.INQUIRYSTATUSFUNDTRANSFERURL", os.Getenv("inqUrl"))
+	viper.SetDefault("FUNDTRANSFERCONFIG.CONSUMERID", "t3rrPWnrt2jsOdjFrliIJcPslE76q09B")
+	viper.SetDefault("FUNDTRANSFERCONFIG.CONSUMERSECRET", "5DhT5Isl2jUOgFGP")
+	viper.SetDefault("FUNDTRANSFERCONFIG.MERCHANID", "ARRT")
+	viper.SetDefault("FUNDTRANSFERCONFIG.FROMACCOUNTNO", "0481418100")
+	viper.SetDefault("FUNDTRANSFERCONFIG.AUTH", "dDNyclBXbnJ0MmpzT2RqRnJsaUlKY1BzbEU3NnEwOUI6NURoVDVJc2wyalVPZ0ZHUA==")
+	viper.SetDefault("FUNDTRANSFERCONFIG.SENDERNAME", "AURORA TRADING CO.LTD.")
+	viper.SetDefault("FUNDTRANSFERCONFIG.TYPEOFSENDER", "K")
+	viper.SetDefault("FUNDTRANSFERCONFIG.INQUIRYSTATUSRETRY", 3)
+	viper.SetDefault("FUNDTRANSFERCONFIG.0AUTHRETRY", 5)
+
+	viper.SetDefault("HTTP.TIMEOUT", "10s")
+	viper.SetDefault("HTTP.MAXIDLECONN", 100)
+	viper.SetDefault("HTTP.MAXIDLECONNPERHOST", 100)
+	viper.SetDefault("HTTP.MAXCONNPERHOST", 100)
+	viper.SetDefault("HTTP.CERTFILE", "star_allgold_arrgx_com.crt")
+	viper.SetDefault("HTTP.KETFILE", "_.allgold.arrgx.com.key")
 
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
