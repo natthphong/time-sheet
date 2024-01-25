@@ -75,6 +75,7 @@ func main() {
 	)
 	_ = httpClient
 
+	_ = redisCmd
 	//internalProducer, err := scramkafka.NewSyncProducer(cfg.Kafka.Internal)
 	//if err != nil {
 	//	logger.Fatal("Fail Create NewSyncProducer", zap.Error(err))
@@ -107,13 +108,18 @@ func main() {
 	//}
 	//defer sftpClient.Close()
 
-	job.GetFileInsertToTblTemp(
+	err = job.GetFileInsertToTblTemp(
 		*cfg,
 		ctx,
 		logger,
 		svc,
 		nil,
+		job.InsertKBANKDailyTemp(dbPool),
 	)
+	if err != nil {
+		logger.Error("GetFileInsertToTblTemp", zap.Any("err ", err))
+	}
+
 	//TODO
 	job.StageCheckFunc(
 		ctx,
