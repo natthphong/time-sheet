@@ -209,7 +209,6 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 		basicAuth := fmt.Sprintf("Basic %s", auth)
 		data := "grant_type=client_credentials"
 		dataByte := []byte(data)
-
 		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(dataByte))
 		if err != nil {
 			return nil, fmt.Errorf("unable to New http request: %v", err)
@@ -219,7 +218,6 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 		req.Header.Set("env-id", "OAUTH2")
 
 		newRetry := retry
-
 		for newRetry > 0 {
 			httpRes, err = client.Do(req)
 			if err != nil {
@@ -274,6 +272,10 @@ type HTTPInquiryStatusFundTransferFunc func(logger *zap.Logger, req InquiryStatu
 
 func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle config.ToggleConfiguration, retry int) HTTPInquiryStatusFundTransferFunc {
 	return func(logger *zap.Logger, req InquiryStatusRequest, accessToken string, wait time.Duration) (*InquiryStatusResponse, error) {
+		status := os.Getenv("statusTxn")
+		if status == "" {
+			status = "Success"
+		}
 		if toggle.IsTest {
 			switch toggle.Case {
 			case "P":
@@ -283,8 +285,8 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 					RsTransID:        uuid.NewString(),
 					ResponseDateTime: time.Now().Format(time.RFC3339),
 					ResponseCode:     "0000",
-					ResponseMsg:      "Success",
-					TxnStatus:        "Success",
+					ResponseMsg:      status,
+					TxnStatus:        status,
 					SettlementDate:   time.Now().Format("20060102"),
 					FailMsg:          "FailMsg",
 				}, nil

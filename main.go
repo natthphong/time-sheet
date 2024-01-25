@@ -107,6 +107,13 @@ func main() {
 	//}
 	//defer sftpClient.Close()
 
+	job.GetFileInsertToTblTemp(
+		*cfg,
+		ctx,
+		logger,
+		svc,
+		nil,
+	)
 	//TODO
 	job.StageCheckFunc(
 		ctx,
@@ -119,17 +126,19 @@ func main() {
 			cache.GetRedis(redisCmd),
 			eft.HTTPOauthFundTransferHttp(
 				httpClient,
-				"",
+				cfg.FundTransferConfig.OauthFundTransferUrl,
 				cfg.Toggle.OauthFundTransfer,
-				3,
+				cfg.FundTransferConfig.OauthRetry,
 			),
 			eft.HTTPInquiryStatusFundTransfer(
 				httpClient,
-				"",
-				cfg.Toggle.OauthFundTransfer,
-				3,
+				cfg.FundTransferConfig.InquiryStatusFundTransferUrl,
+				cfg.Toggle.InquiryStatusFundTransfer,
+				cfg.FundTransferConfig.InquiryStatusRetry,
 			),
+			dbPool,
 		),
+		job.UpdateUnMatedHeader(dbPool),
 	)
 	lambda.Start(LambdaHandler)
 }
