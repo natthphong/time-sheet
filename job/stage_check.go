@@ -131,14 +131,17 @@ func InsertUnMatedDetail(
 				payment.FundTransferTransactionModel = r.FundTransferTransactionModel
 
 				if r.KBankId == "" {
-					temp.Reason = "REVERT"
-					payment.ToRevert = true
-					payment.FundTransferTransactionModel = r.FundTransferTransactionModel
-					err := sendMessageSyncWithTopicFunc(logger, payment, topicGold)
-					if err != nil {
-						logger.Error("Error SendMessage ", zap.Any("topic", topicGold))
+
+					if r.TransactionResultId.IsNegative() {
+						temp.Reason = "REVERT"
+						payment.ToRevert = true
+						payment.FundTransferTransactionModel = r.FundTransferTransactionModel
+						err := sendMessageSyncWithTopicFunc(logger, payment, topicGold)
+						if err != nil {
+							logger.Error("Error SendMessage ", zap.Any("topic", topicGold))
+						}
+						unmatchedDetails = append(unmatchedDetails, temp)
 					}
-					unmatchedDetails = append(unmatchedDetails, temp)
 
 				} else if r.TransactionResultId.IsNegative() {
 					inquiryStatusRequest := eft.InquiryStatusRequest{
