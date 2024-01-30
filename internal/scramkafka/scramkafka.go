@@ -5,7 +5,6 @@ import (
 	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/pkg/errors"
 	"github.com/xdg-go/scram"
@@ -159,8 +158,6 @@ func NewSyncProducer(cfg config.KafkaConfig) (sarama.SyncProducer, error) {
 		config.Producer.Partitioner = sarama.NewRandomPartitioner
 	}
 
-	fmt.Println("cfg.Brokers ", cfg.Brokers)
-	fmt.Print("config \n", config)
 	return sarama.NewSyncProducer(cfg.Brokers, config)
 }
 
