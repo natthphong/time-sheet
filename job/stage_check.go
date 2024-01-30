@@ -44,6 +44,7 @@ func StageCheckFunc(
 	InsertUnMatedDetailFunc InsertUnMatedDetailFunc,
 	UpdateUnMatedHeaderFunc UpdateUnMatedHeaderFunc,
 ) error {
+	logger.Info("hello checking")
 	id, err := InsertUnMatedHeaderFunc(ctx, logger)
 	if err != nil {
 		logger.Error("Fail InsertUnMatedHeaderFunc", zap.Any("err", err.Error()))
@@ -94,7 +95,6 @@ func InsertUnMatedDetail(
 		if err != nil {
 			tokenResponse, err := oauthFundTransferHttp(logger, fundTransferConfig.Auth, time.Second*45)
 			if err != nil {
-				//TODO cannot get auth?
 				_ = exceptionConfig.Description.SystemError
 				_ = exceptionConfig.Code.SystemError
 				logger.Error("callOauthFundTransferHttp", zap.Error(err))
@@ -127,16 +127,15 @@ func InsertUnMatedDetail(
 				payment.FundTransferTransactionModel = r.FundTransferTransactionModel
 
 				if r.KBankId == "" {
-					//case TimeOut
-					if !r.TransactionResultId.IsNegative() {
-						temp.Reason = "REVERT"
-						payment.ToRevert = true
-						payment.FundTransferTransactionModel = r.FundTransferTransactionModel
-						//TODO sendToRevert
-						logger.Info("REVERT CASE TIME OUT", zap.Any("json", payment))
-						unmatchedDetails = append(unmatchedDetails, temp)
-					}
-				} else {
+					temp.Reason = "REVERT"
+					payment.ToRevert = true
+					payment.FundTransferTransactionModel = r.FundTransferTransactionModel
+					//TODO sendToRevert
+					logger.Info("REVERT CASE TIME OUT", zap.Any("json", payment))
+					unmatchedDetails = append(unmatchedDetails, temp)
+
+				} else if r.TransactionResultId.IsNegative() {
+
 					inquiryStatusRequest := eft.InquiryStatusRequest{
 						MerchantID:      fundTransferConfig.MerchantID,
 						RequestDateTime: requestDateTime,
@@ -145,7 +144,6 @@ func InsertUnMatedDetail(
 					}
 					inquiryStatusRes, err := inquiryStatusFundTransferHttp(logger, inquiryStatusRequest, auth, time.Second*45)
 					if err != nil {
-						//TODO cannot Inq ?
 						temp.Reason = "err"
 						unmatchedDetails = append(unmatchedDetails, temp)
 						logger.Error("inquiryStatusFundTransferHttp", zap.Any("err", err.Error()))
@@ -214,8 +212,12 @@ type GetListResultFunc func(ctx context.Context, logger *zap.Logger) ([]ResultSt
 
 func GetListResult(db *pgxpool.Pool) GetListResultFunc {
 	return func(ctx context.Context, logger *zap.Logger) ([]ResultStruct, error) {
+		currentDate := time.Now()
+		currentMonth := currentDate.Format("y2006m01")
+		logger.Info("", zap.Any("currentMonth", currentMonth))
+		isFirstDayOfMonth := currentDate.Day() == 1
 		sql := `
-			select COALESCE( ttr.transaction_id ,-1)as transactionResultId
+				select COALESCE( ttr.transaction_id ,-1)as transactionResultId
 			, trb.transaction_bank_id   as aspBankId
 			, COALESCE( tdkr.transaction_bank_id , '') as kbankId
 			, COALESCE( ttr.status ,'')
@@ -224,11 +226,23 @@ func GetListResult(db *pgxpool.Pool) GetListResultFunc {
 			, trb.payment_message_json as payment
 			, trb.fund_transfer_transaction_json  as fundTransfer
 			from tbl_reconcile_bank trb   left outer join tbl_daily_kbank_reconcile tdkr 
-			on trb.transaction_bank_id  = tdkr.transaction_bank_id  left outer join tbl_transaction tt 
-			on trb.transaction_id  = tt.transaction_id left outer join tbl_transaction_result ttr
+			on trb.transaction_bank_id  = tdkr.transaction_bank_id  left outer join tbl_transaction_%s tt 
+			on trb.transaction_id  = tt.transaction_id left outer join tbl_transaction_result_%s   ttr
 			on tt.transaction_id  = ttr.transaction_id 
 		`
-		rows, err := db.Query(ctx, sql)
+		sqlFormat := ""
+		if isFirstDayOfMonth {
+			previousMonth := currentDate.AddDate(0, -1, 0)
+			previousMonthFormatted := previousMonth.Format("y2006m01")
+			sql = sql + `   left outer join tbl_transaction_%s tt2 
+			on tt2.transaction_id  = trb.transaction_id left outer join tbl_transaction_result_%s ttr2 
+			on ttr.transaction_id  = trb.transaction_id   `
+			sqlFormat = fmt.Sprintf(sql, currentMonth, currentMonth, previousMonthFormatted, previousMonthFormatted)
+		} else {
+			sqlFormat = fmt.Sprintf(sql, currentMonth, currentMonth)
+		}
+
+		rows, err := db.Query(ctx, sqlFormat)
 		if err != nil {
 			logger.Error("Error executing ", zap.Any("", err.Error()))
 			return []ResultStruct{}, err

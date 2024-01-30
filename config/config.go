@@ -125,8 +125,8 @@ type HTTP struct {
 	MaxIdleConn        int
 	MaxIdleConnPerHost int
 	MaxConnPerHost     int
-	CertFile           string
-	KeyFile            string
+	CertFile           []byte
+	KeyFile            []byte
 }
 type AWSConfig struct {
 	RDSSecret    string
@@ -207,8 +207,8 @@ func InitConfig() (*Config, error) {
 	viper.SetDefault("HTTP.MAXIDLECONN", 100)
 	viper.SetDefault("HTTP.MAXIDLECONNPERHOST", 100)
 	viper.SetDefault("HTTP.MAXCONNPERHOST", 100)
-	viper.SetDefault("HTTP.CERTFILE", "star_allgold_arrgx_com.crt")
-	viper.SetDefault("HTTP.KeyFile", "_.allgold.arrgx.com.key")
+	//viper.SetDefault("HTTP.CERTFILE", "star_allgold_arrgx_com.crt")
+	//viper.SetDefault("HTTP.KeyFile", "_.allgold.arrgx.com.key")
 
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

@@ -73,6 +73,11 @@ func main() {
 		cfg.HTTP.CertFile,
 		cfg.HTTP.KeyFile,
 	)
+
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "Error in init httpClient."))
+	}
+
 	_ = httpClient
 
 	_ = redisCmd

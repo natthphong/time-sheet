@@ -202,6 +202,7 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 
 		var (
 			httpRes  *http.Response
+			req      *http.Request
 			err      error
 			response *AccessTokenResponse
 		)
@@ -209,16 +210,15 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 		basicAuth := fmt.Sprintf("Basic %s", auth)
 		data := "grant_type=client_credentials"
 		dataByte := []byte(data)
-		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(dataByte))
-		if err != nil {
-			return nil, fmt.Errorf("unable to New http request: %v", err)
-		}
-		req.Header.Set("Authorization", basicAuth)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("env-id", "OAUTH2")
-
 		newRetry := retry
 		for newRetry > 0 {
+			req, err = http.NewRequest(http.MethodPost, url, bytes.NewBuffer(dataByte))
+			if err != nil {
+				return nil, fmt.Errorf("unable to New http request: %v", err)
+			}
+			req.Header.Set("Authorization", basicAuth)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("env-id", "OAUTH2")
 			httpRes, err = client.Do(req)
 			if err != nil {
 				logger.Error("Error on call http request", zap.Error(err))

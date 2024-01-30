@@ -3,6 +3,7 @@ package secret
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
@@ -22,6 +23,8 @@ type CommonConfig struct {
 	KafkaUsername  string `json:"KAFKA_USERNAME"`
 	KafkaPassword  string `json:"KAFKA_PASSWORD"`
 	RedisPassword  string `json:"REDIS_PASSWORD"`
+	KeyFile        string `json:"KEY_FILE"`
+	CertFile       string `json:"CERT_FILE"`
 }
 
 func ConfigCommonSecret(cfg *config.Config) error {
@@ -56,6 +59,20 @@ func ConfigCommonSecret(cfg *config.Config) error {
 		//TODO WITH Redis Password
 		cfg.RedisConfig.Password = commonConfig.RedisPassword
 	}
+
+	certDecode, err := base64.StdEncoding.DecodeString(commonConfig.CertFile)
+	if err != nil {
+		return err
+	}
+	keyDecode, err := base64.StdEncoding.DecodeString(commonConfig.KeyFile)
+	if err != nil {
+		return err
+	}
+
+	fmt.Print("certDecode\n", string(certDecode))
+	fmt.Print("keyDecode\n", string(keyDecode))
+	cfg.HTTP.CertFile = certDecode
+	cfg.HTTP.KeyFile = keyDecode
 
 	decodedPrivateKey, err := base64.StdEncoding.DecodeString(cfg.Secret.Private)
 	if err != nil {
