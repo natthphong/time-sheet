@@ -223,7 +223,6 @@ func GetListResult(db *pgxpool.Pool) GetListResultFunc {
 	return func(ctx context.Context, logger *zap.Logger) ([]ResultStruct, error) {
 		currentDate := time.Now()
 		currentMonth := currentDate.Format("y2006m01")
-		logger.Info("", zap.Any("currentMonth", currentMonth))
 		isFirstDayOfMonth := currentDate.Day() == 1
 		sql := `
 				select COALESCE( ttr.transaction_id ,-1)as transactionResultId

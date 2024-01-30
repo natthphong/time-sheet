@@ -145,11 +145,6 @@ func DownLoadFileAndPushToS3(
 	putFileToS3 PutFileToS3Func,
 ) DownLoadFileAndPushToS3Func {
 	return func(ctx context.Context, logger *zap.Logger, fileName, folder string) error {
-		info, err := sftp.Info(folder + "/")
-		if err != nil {
-			return err
-		}
-		logger.Info("", zap.Any("", info.IsDir()))
 
 		byteFile, err := sftp.Download(fmt.Sprintf("%s/%s", folder, fileName))
 
