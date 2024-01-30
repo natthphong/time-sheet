@@ -24,8 +24,13 @@ type Config struct {
 	Exception          Exception
 	HTTP               HTTP
 	S3Config           S3Config
+	Producer           Producer
 }
 
+type Producer struct {
+	GoldListener     string
+	FinalTxnListener string
+}
 type S3Config struct {
 	BucketName string
 	Key        string
@@ -163,8 +168,8 @@ func InitConfig() (*Config, error) {
 	viper.SetDefault("KAFKA.INTERNAL.GROUP", "")
 	viper.SetDefault("KAFKA.INTERNAL.VERSION", "2.8.1")
 	viper.SetDefault("KAFKA.INTERNAL.OLDEST", true)
-	viper.SetDefault("KAFKA.INTERNAL.SSAL", false)
-	viper.SetDefault("KAFKA.INTERNAL.TLS", false)
+	viper.SetDefault("KAFKA.INTERNAL.SSAL", true)
+	viper.SetDefault("KAFKA.INTERNAL.TLS", true)
 	viper.SetDefault("KAFKA.INTERNAL.STRATEGY", "roundrobin")
 	viper.SetDefault("AWSCONFIG.RDSSECRET", "AmazonEKS_RDS_Secret")
 	viper.SetDefault("AWSCONFIG.COMMONSECRET", "AmazonEKS_secret")
@@ -173,7 +178,7 @@ func InitConfig() (*Config, error) {
 	viper.SetDefault("DBCONFIG.MAXOPENCONN", "4")
 	viper.SetDefault("DBCONFIG.MAXCONNLIFETIME", "300")
 
-	viper.SetDefault("SFTPConfig.Server", "58.137.161.63")
+	viper.SetDefault("SFTPConfig.Server", "58.137.161.63:22")
 	viper.SetDefault("SFTPConfig.Username", "ARRTUSR001")
 	viper.SetDefault("SFTPConfig.Password", "ARRTP@22Uat")
 	viper.SetDefault("SFTPConfig.Directory", "ARRT_NBGW_OUTBOUND")
@@ -210,6 +215,8 @@ func InitConfig() (*Config, error) {
 	//viper.SetDefault("HTTP.CERTFILE", "star_allgold_arrgx_com.crt")
 	//viper.SetDefault("HTTP.KeyFile", "_.allgold.arrgx.com.key")
 
+	viper.SetDefault("Producer.FinalTxnListener", os.Getenv("FinalTxnTopic"))
+	viper.SetDefault("Producer.GoldListener", os.Getenv("GoldTopic"))
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 

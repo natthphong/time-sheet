@@ -10,6 +10,7 @@ import (
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/config"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/eft"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/cache"
+	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/kafka"
 	"go.uber.org/zap"
 	"strings"
 	"time"
@@ -44,7 +45,6 @@ func StageCheckFunc(
 	InsertUnMatedDetailFunc InsertUnMatedDetailFunc,
 	UpdateUnMatedHeaderFunc UpdateUnMatedHeaderFunc,
 ) error {
-	logger.Info("hello checking")
 	id, err := InsertUnMatedHeaderFunc(ctx, logger)
 	if err != nil {
 		logger.Error("Fail InsertUnMatedHeaderFunc", zap.Any("err", err.Error()))
@@ -79,12 +79,15 @@ func UpdateUnMatedHeader(db *pgxpool.Pool) UpdateUnMatedHeaderFunc {
 type InsertUnMatedDetailFunc func(ctx context.Context, logger *zap.Logger, rs []ResultStruct, id int) error
 
 func InsertUnMatedDetail(
+	topicFinal string,
+	topicGold string,
 	fundTransferConfig config.FundTransferConfig,
 	exceptionConfig config.Exception,
 	getRedis cache.GetRedisFunc,
 	oauthFundTransferHttp eft.HTTPOauthFundTransferHttpFunc,
 	inquiryStatusFundTransferHttp eft.HTTPInquiryStatusFundTransferFunc,
 	db *pgxpool.Pool,
+	sendMessageSyncWithTopicFunc kafka.SendMessageSyncWithTopicFunc,
 ) InsertUnMatedDetailFunc {
 	return func(ctx context.Context, logger *zap.Logger, rs []ResultStruct, id int) error {
 
@@ -130,12 +133,13 @@ func InsertUnMatedDetail(
 					temp.Reason = "REVERT"
 					payment.ToRevert = true
 					payment.FundTransferTransactionModel = r.FundTransferTransactionModel
-					//TODO sendToRevert
-					logger.Info("REVERT CASE TIME OUT", zap.Any("json", payment))
+					err := sendMessageSyncWithTopicFunc(logger, payment, topicGold)
+					if err != nil {
+						logger.Error("Error SendMessage ", zap.Any("topic", topicGold))
+					}
 					unmatchedDetails = append(unmatchedDetails, temp)
 
 				} else if r.TransactionResultId.IsNegative() {
-
 					inquiryStatusRequest := eft.InquiryStatusRequest{
 						MerchantID:      fundTransferConfig.MerchantID,
 						RequestDateTime: requestDateTime,
@@ -152,14 +156,18 @@ func InsertUnMatedDetail(
 						temp.BankStatus = status
 						if strings.EqualFold(status, "Success") {
 							temp.Reason = status
-							//TODO send message FINAL
-							logger.Info("TOO FINAL", zap.Any("json", payment))
+							err := sendMessageSyncWithTopicFunc(logger, payment, topicFinal)
+							if err != nil {
+								logger.Error("Error SendMessage ", zap.Any("topic", topicFinal))
+							}
 							unmatchedDetails = append(unmatchedDetails, temp)
 						} else {
 							temp.Reason = "REVERT"
 							payment.ToRevert = true
-							//TODO send message  REVERT
-							logger.Info("REVERT CASE STATUS FAIL", zap.Any("json", payment))
+							err := sendMessageSyncWithTopicFunc(logger, payment, topicGold)
+							if err != nil {
+								logger.Error("Error SendMessage ", zap.Any("topic", topicGold))
+							}
 							unmatchedDetails = append(unmatchedDetails, temp)
 						}
 					}

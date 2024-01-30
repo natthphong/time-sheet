@@ -2,6 +2,7 @@ package job
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,50 +36,52 @@ func GetFileInsertToTblTemp(
 	ctx context.Context,
 	logger *zap.Logger,
 	s3Client *s3.S3,
-	sftp *sftp.Client,
+	downLoadFileAndPushToS3Func DownLoadFileAndPushToS3Func,
 	InsertKBANKDailyTempFunc InsertKBANKDailyTempFunc,
 ) error {
 	layout := "20060102 15:04:05:000"
 	var list []DailyKBankReconcile
-	if cfg.EnableS3 {
-		file, err := s3Client.GetObject(&s3.GetObjectInput{
-			Bucket: aws.String(cfg.S3Config.BucketName),
-			Key:    aws.String(cfg.S3Config.Key),
-		})
-		if err != nil {
-			panic(err)
-		}
-		defer file.Body.Close()
-		scanner := bufio.NewScanner(file.Body)
+	formattedDate := time.Now().Format("20060102")
 
-		for scanner.Scan() {
-			line := scanner.Text()
-			rows := strings.Split(line, "|")
-			if len(rows) >= 9 {
-				temp := DailyKBankReconcile{
-					RSTransID:            rows[0],
-					TransactionBankID:    rows[1],
-					RequestDateTime:      ToTime(layout, rows[2]),
-					FundTransferDateTime: ToTime(layout, rows[3]),
-					TransType:            rows[4],
-					ProxyValue:           rows[5],
-					Amount:               ToDecimal(rows[6]),
-					Ref1:                 rows[7],
-					Ref2:                 rows[8],
-					CreatedDate:          time.Now(),
-					CreatedBy:            "SYSTEM",
-				}
-				list = append(list, temp)
-				//TODO
+	fileName := fmt.Sprintf("FundTransferMerchantReconcile_MERCHANTID_%s", formattedDate)
+	err := downLoadFileAndPushToS3Func(ctx, logger, fileName, cfg.SFTPConfig.Directory)
+	if err != nil {
+		return err
+	}
+
+	file, err := s3Client.GetObject(&s3.GetObjectInput{
+		Bucket: aws.String(cfg.S3Config.BucketName),
+		Key:    aws.String(cfg.SFTPConfig.Directory + "/" + fileName),
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer file.Body.Close()
+	scanner := bufio.NewScanner(file.Body)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		rows := strings.Split(line, "|")
+		if len(rows) >= 9 {
+			temp := DailyKBankReconcile{
+				RSTransID:            rows[0],
+				TransactionBankID:    rows[1],
+				RequestDateTime:      ToTime(layout, rows[2]),
+				FundTransferDateTime: ToTime(layout, rows[3]),
+				TransType:            rows[4],
+				ProxyValue:           rows[5],
+				Amount:               ToDecimal(rows[6]),
+				Ref1:                 rows[7],
+				Ref2:                 rows[8],
+				CreatedDate:          time.Now(),
+				CreatedBy:            "SYSTEM",
 			}
-
+			list = append(list, temp)
 		}
-
-	} else {
 
 	}
 
-	err := InsertKBANKDailyTempFunc(ctx, logger, list)
+	err = InsertKBANKDailyTempFunc(ctx, logger, list)
 	return err
 
 	return nil
@@ -130,6 +133,48 @@ func InsertKBANKDailyTemp(db *pgxpool.Pool) InsertKBANKDailyTempFunc {
 			return err
 		}
 
+		return nil
+	}
+}
+
+type DownLoadFileAndPushToS3Func func(ctx context.Context, logger *zap.Logger, fileName, folder string) error
+
+func DownLoadFileAndPushToS3(
+	sftp *sftp.Client,
+	svc *s3.S3,
+	putFileToS3 PutFileToS3Func,
+) DownLoadFileAndPushToS3Func {
+	return func(ctx context.Context, logger *zap.Logger, fileName, folder string) error {
+		info, err := sftp.Info(folder + "/")
+		if err != nil {
+			return err
+		}
+		logger.Info("", zap.Any("", info.IsDir()))
+
+		byteFile, err := sftp.Download(fmt.Sprintf("%s/%s", folder, fileName))
+
+		fileReader := bytes.NewReader(byteFile)
+		err = putFileToS3(fileName, folder, fileReader, svc)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+}
+
+type PutFileToS3Func func(filename, key string, file *bytes.Reader, svc *s3.S3) error
+
+func PutFileToS3(bucket string) PutFileToS3Func {
+	return func(filename, key string, file *bytes.Reader, svc *s3.S3) error {
+		_, err := svc.PutObject(&s3.PutObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(fmt.Sprintf("%s/%s", key, filename)),
+			Body:   file,
+		})
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 }

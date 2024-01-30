@@ -314,3 +314,8 @@ type InquiryStatusResponse struct {
 	SettlementDate   string `json:"settlementDate"`
 	FailMsg          string `json:"failMsg"`
 }
+
+type KafkaMessageModel struct {
+	TopicRes string         `json:"topicRes"`
+	Message  PaymentMessage `json:"message"`
+}

@@ -14,11 +14,15 @@ import (
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/cache"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/db"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/httputil"
+	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/kafka"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/logz"
+	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/scramkafka"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/secret"
+	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/sftp"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/job"
 	"go.uber.org/zap"
 	"log"
+	"time"
 )
 
 func main() {
@@ -81,15 +85,15 @@ func main() {
 	_ = httpClient
 
 	_ = redisCmd
-	//internalProducer, err := scramkafka.NewSyncProducer(cfg.Kafka.Internal)
-	//if err != nil {
-	//	logger.Fatal("Fail Create NewSyncProducer", zap.Error(err))
-	//}
-	//defer func() {
-	//	if err = internalProducer.Close(); err != nil {
-	//		logger.Fatal("Fail Close SyncProducer", zap.Error(err))
-	//	}
-	//}()
+	internalProducer, err := scramkafka.NewSyncProducer(cfg.Kafka.Internal)
+	if err != nil {
+		logger.Fatal("Fail Create NewSyncProducer", zap.Error(err))
+	}
+	defer func() {
+		if err = internalProducer.Close(); err != nil {
+			logger.Fatal("Fail Close SyncProducer", zap.Error(err))
+		}
+	}()
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String("ap-southeast-1"),
 	})
@@ -99,39 +103,43 @@ func main() {
 	}
 	svc := s3.New(sess)
 	_ = svc
-	//TODO get file and insert
-	//sftpConfig := sftp.Config{
-	//	Username: cfg.SFTPConfig.Username,
-	//	Password: cfg.SFTPConfig.Password,
-	//	Server:   cfg.SFTPConfig.Server,
-	//	Timeout:  time.Second * 30,
-	//}
-	//
-	//sftpClient, err := sftp.New(sftpConfig)
-	//if err != nil {
-	//	logger.Fatal("Error on sftp Connection", zap.Error(err))
-	//}
-	//defer sftpClient.Close()
+	sftpConfig := sftp.Config{
+		Username: cfg.SFTPConfig.Username,
+		Password: cfg.SFTPConfig.Password,
+		Server:   cfg.SFTPConfig.Server,
+		Timeout:  time.Second * 30,
+	}
+
+	sftpClient, err := sftp.New(sftpConfig)
+	if err != nil {
+		logger.Fatal("Error on sftp Connection", zap.Error(err))
+	}
+	defer sftpClient.Close()
 
 	err = job.GetFileInsertToTblTemp(
 		*cfg,
 		ctx,
 		logger,
 		svc,
-		nil,
+		job.DownLoadFileAndPushToS3(
+			sftpClient,
+			svc,
+			job.PutFileToS3(cfg.S3Config.BucketName),
+		),
 		job.InsertKBANKDailyTemp(dbPool),
 	)
 	if err != nil {
 		logger.Error("GetFileInsertToTblTemp", zap.Any("err ", err))
 	}
 
-	//TODO
-	job.StageCheckFunc(
+	err = job.StageCheckFunc(
 		ctx,
 		logger,
 		job.InsertUnMatedHeader(dbPool),
 		job.GetListResult(dbPool),
 		job.InsertUnMatedDetail(
+			cfg.Producer.FinalTxnListener,
+			cfg.Producer.GoldListener,
 			cfg.FundTransferConfig,
 			cfg.Exception,
 			cache.GetRedis(redisCmd),
@@ -148,9 +156,15 @@ func main() {
 				cfg.FundTransferConfig.InquiryStatusRetry,
 			),
 			dbPool,
+			kafka.NewSendMessageSyncWithTopic(internalProducer),
 		),
 		job.UpdateUnMatedHeader(dbPool),
 	)
+
+	if err != nil {
+		logger.Error("StageCheckFunc", zap.Any("err ", err))
+	}
+
 	lambda.Start(LambdaHandler)
 }
 
