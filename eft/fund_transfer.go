@@ -327,7 +327,7 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 				continue
 			}
 			if httpRes != nil {
-				if httpRes.StatusCode < 200 && httpRes.StatusCode > 299 {
+				if httpRes.StatusCode < 200 || httpRes.StatusCode > 299 {
 					logger.Error(fmt.Sprintf("HTTP status code out of range (%d)", httpRes.StatusCode))
 					newRetry--
 					time.Sleep(wait)
