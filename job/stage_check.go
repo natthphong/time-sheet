@@ -242,6 +242,7 @@ func GetListResult(db *pgxpool.Pool) GetListResultFunc {
 			sqlFormat = fmt.Sprintf(sql, currentMonth, currentMonth)
 		}
 
+		sqlFormat = sqlFormat + `   where DATE(trb.created_date) = CURRENT_DATE  - INTERVAL '1 DAY' `
 		rows, err := db.Query(ctx, sqlFormat)
 		if err != nil {
 			logger.Error("Error executing ", zap.Any("", err.Error()))
