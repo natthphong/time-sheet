@@ -102,6 +102,7 @@ func InsertUnMatedDetail(
 				_ = exceptionConfig.Code.SystemError
 				logger.Error("callOauthFundTransferHttp", zap.Error(err))
 			}
+			logger.Info("", zap.Any("tokenResponse", tokenResponse))
 			if tokenResponse != nil {
 				accessToken = tokenResponse.AccessToken
 			}

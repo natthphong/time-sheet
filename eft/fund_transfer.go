@@ -217,7 +217,7 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 				return nil, fmt.Errorf("unable to New http request: %v", err)
 			}
 			req.Header.Set("Authorization", basicAuth)
-			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Set("env-id", "OAUTH2")
 			httpRes, err = client.Do(req)
 			if err != nil {
@@ -228,7 +228,8 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 			}
 
 			if httpRes != nil {
-				if !(httpRes.StatusCode < 200 && httpRes.StatusCode > 299) {
+
+				if httpRes.StatusCode < 200 || httpRes.StatusCode > 299 {
 					logger.Error(fmt.Sprintf("HTTP status code out of range (%d)", httpRes.StatusCode))
 					retry--
 					time.Sleep(wait)

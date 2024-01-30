@@ -68,8 +68,6 @@ func ConfigCommonSecret(cfg *config.Config) error {
 		return err
 	}
 
-	//fmt.Print("keyDecode\n", string(keyDecode))
-	//fmt.Print("certDecode\n", string(certDecode))
 	cfg.HTTP.CertFile = certDecode
 	cfg.HTTP.KeyFile = keyDecode
 
