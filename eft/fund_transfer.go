@@ -257,6 +257,10 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 					time.Sleep(wait)
 					continue
 				}
+				if httpRes.StatusCode >= 200 || httpRes.StatusCode <= 299 {
+					break
+				}
+
 			}
 
 		}
@@ -354,6 +358,9 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 					newRetry--
 					time.Sleep(wait)
 					continue
+				}
+				if httpRes.StatusCode >= 200 || httpRes.StatusCode <= 299 {
+					break
 				}
 			}
 		}
