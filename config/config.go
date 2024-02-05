@@ -177,6 +177,7 @@ func InitConfig() (*Config, error) {
 
 	viper.SetDefault("DBCONFIG.MAXOPENCONN", "4")
 	viper.SetDefault("DBCONFIG.MAXCONNLIFETIME", "300")
+	viper.SetDefault("DBCONFIG.Dbname", "postgres")
 
 	viper.SetDefault("SFTPConfig.Server", "58.137.161.63:22")
 	viper.SetDefault("SFTPConfig.Username", "ARRTUSR001")

@@ -190,7 +190,7 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 					DeveloperEmail: "FreedomX-10@hotmail.com",
 					TokenType:      "Bearer",
 					ClientID:       "t3rrPWnrt2jsOdjFrliIJcPslE76q09B",
-					AccessToken:    "AccessToken",
+					AccessToken:    os.Getenv("mockAccessToken"),
 					Scope:          "Any",
 					ExpiresIn:      "1799",
 					Status:         "approved",
@@ -232,6 +232,7 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 				if httpRes.StatusCode < 200 || httpRes.StatusCode > 299 {
 					logger.Error(fmt.Sprintf("HTTP status code out of range (%d)", httpRes.StatusCode))
 					retry--
+
 					time.Sleep(wait)
 					continue
 				}
@@ -257,7 +258,7 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 					time.Sleep(wait)
 					continue
 				}
-				if httpRes.StatusCode >= 200 || httpRes.StatusCode <= 299 {
+				if httpRes.StatusCode >= 200 && httpRes.StatusCode <= 299 {
 					break
 				}
 
@@ -303,7 +304,7 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 			httpRes  *http.Response
 			httpReq  *http.Request
 			err      error
-			response *InquiryStatusResponse
+			response = &InquiryStatusResponse{}
 		)
 
 		requestBodyJSON, err := json.Marshal(&req)
@@ -311,7 +312,6 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 			return nil, err
 		}
 
-		bearer := fmt.Sprintf("Bearer %s", accessToken)
 		newRetry := retry
 
 		for newRetry > 0 {
@@ -320,7 +320,7 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 				return nil, fmt.Errorf("unable to New http request: %v", err)
 			}
 
-			httpReq.Header.Set("Authorization", bearer)
+			httpReq.Header.Set("Authorization", accessToken)
 			httpReq.Header.Set("Content-Type", "application/json")
 
 			httpRes, err = client.Do(httpReq)
@@ -338,6 +338,7 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 					continue
 				}
 				body, err := io.ReadAll(httpRes.Body)
+
 				if err != nil {
 					logger.Error("Error on read response", zap.Error(err))
 					newRetry--
@@ -356,10 +357,11 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 				if slices.Contains(exceptionInquiryStatus, response.TxnStatus) {
 					logger.Error(fmt.Sprintf("transaction is (%s)", response.TxnStatus))
 					newRetry--
+
 					time.Sleep(wait)
 					continue
 				}
-				if httpRes.StatusCode >= 200 || httpRes.StatusCode <= 299 {
+				if httpRes.StatusCode >= 200 && httpRes.StatusCode <= 299 {
 					break
 				}
 			}
