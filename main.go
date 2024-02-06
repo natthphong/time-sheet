@@ -157,6 +157,7 @@ func main() {
 			),
 			dbPool,
 			kafka.NewSendMessageSyncWithTopic(internalProducer),
+			job.InsertRevertBank(),
 		),
 		job.UpdateUnMatedHeader(dbPool),
 	)

@@ -28,8 +28,9 @@ type BankUnmatchedDetail struct {
 
 type ResultStruct struct {
 	TransactionResultId          decimal.Decimal `json:"transactionResultId"`
+	TransactionId                decimal.Decimal `json:"transactionId"`
 	AspBankId                    string          `json:"aspBankId"`
-	KBankId                      string          `json:"kbankId"`
+	KBankId                      string          `json:"kBankId"`
 	Status                       string          `json:"status"`
 	ChannelCode                  string          `json:"channelCode"`
 	RsTransID                    string          `json:"rsTransId"`
@@ -88,9 +89,10 @@ func InsertUnMatedDetail(
 	inquiryStatusFundTransferHttp eft.HTTPInquiryStatusFundTransferFunc,
 	db *pgxpool.Pool,
 	sendMessageSyncWithTopicFunc kafka.SendMessageSyncWithTopicFunc,
+	InsertRevertBankFunc InsertRevertBankFunc,
 ) InsertUnMatedDetailFunc {
 	return func(ctx context.Context, logger *zap.Logger, rs []ResultStruct, id int) error {
-
+		tx, err := db.Begin(ctx)
 		var unmatchedDetails []BankUnmatchedDetail
 
 		fundTransferTokenKey := cache.FundTransferTokenKey
@@ -126,17 +128,25 @@ func InsertUnMatedDetail(
 				var payment PaymentMessage
 				err := json.Unmarshal(r.PaymentMessage, &payment)
 				if err != nil {
-					logger.Error("Map payment", zap.Any("err", err.Error()))
+					logger.Error("Map payment ", zap.Any("err", err.Error()), zap.Any("id", r.TransactionId))
 				}
 				payment.FundTransferTransactionModel = r.FundTransferTransactionModel
 
 				if r.KBankId == "" {
-
 					if r.TransactionResultId.IsNegative() {
 						temp.Reason = "REVERT"
 						payment.ToRevert = true
 						payment.FundTransferTransactionModel = r.FundTransferTransactionModel
-						err := sendMessageSyncWithTopicFunc(logger, payment, topicGold)
+						var fundTransferModel FundTransferTransactionModel
+						err := json.Unmarshal(r.FundTransferTransactionModel, &fundTransferModel)
+						if err != nil {
+							logger.Error("Map fundTransferModel ", zap.Any("err", err.Error()), zap.Any("id", r.TransactionId))
+						}
+						err = InsertRevertBankFunc(ctx, tx, fundTransferModel, logger, r.TransactionId)
+						if err != nil {
+							logger.Error("InsertRevertBankFunc ", zap.Any("err", err.Error()), zap.Any("id", r.TransactionId))
+						}
+						err = sendMessageSyncWithTopicFunc(logger, payment, topicGold)
 						if err != nil {
 							logger.Error("Error SendMessage ", zap.Any("topic", topicGold))
 						}
@@ -144,6 +154,9 @@ func InsertUnMatedDetail(
 					}
 
 				} else if r.TransactionResultId.IsNegative() {
+
+					logger.Info("tra", zap.Any(" r.TransactionResultId", r.TransactionResultId),
+						zap.Any("r.TransactionId", r.TransactionId))
 					inquiryStatusRequest := eft.InquiryStatusRequest{
 						MerchantID:      fundTransferConfig.MerchantID,
 						RequestDateTime: requestDateTime,
@@ -168,7 +181,16 @@ func InsertUnMatedDetail(
 						} else {
 							temp.Reason = "REVERT"
 							payment.ToRevert = true
-							err := sendMessageSyncWithTopicFunc(logger, payment, topicGold)
+							var fundTransferModel FundTransferTransactionModel
+							err := json.Unmarshal(r.FundTransferTransactionModel, &fundTransferModel)
+							if err != nil {
+								logger.Error("Map fundTransferModel ", zap.Any("err", err.Error()), zap.Any("id", r.TransactionId))
+							}
+							err = InsertRevertBankFunc(ctx, tx, fundTransferModel, logger, r.TransactionId)
+							if err != nil {
+								logger.Error("InsertRevertBankFunc ", zap.Any("err", err.Error()), zap.Any("id", r.TransactionId))
+							}
+							err = sendMessageSyncWithTopicFunc(logger, payment, topicGold)
 							if err != nil {
 								logger.Error("Error SendMessage ", zap.Any("topic", topicGold))
 							}
@@ -191,14 +213,30 @@ func InsertUnMatedDetail(
 				ix++
 			}
 
-			i, err := db.CopyFrom(ctx, pgx.Identifier{"tbl_bank_unmatched_detail"}, []string{"unmatched_header_id", "reason", "bank_status", "asp_status", "transaction_bank_id", "channel_code", "created_date"}, pgx.CopyFromRows(rows))
-			fmt.Println("row insert ", i)
+			if _, err = tx.CopyFrom(ctx, pgx.Identifier{"tbl_bank_unmatched_detail"}, []string{"unmatched_header_id", "reason", "bank_status", "asp_status", "transaction_bank_id", "channel_code", "created_date"}, pgx.CopyFromRows(rows)); err != nil {
+				logger.Error("Error on queryInsertGoldTransaction", zap.Error(err))
+				return rollbackConfirmTxn(ctx, tx, err)
+			}
+
 			if err != nil {
 				return err
+			}
+
+			if err = tx.Commit(ctx); err != nil {
+				logger.Error("Error on committing database", zap.Error(err))
+				return rollbackConfirmTxn(ctx, tx, err)
 			}
 		}
 		return nil
 	}
+}
+
+func rollbackConfirmTxn(ctx context.Context, tx pgx.Tx, err error) error {
+	fmt.Print("err ", err.Error())
+	if errRollback := tx.Rollback(ctx); errRollback != nil {
+		return errRollback
+	}
+	return err
 }
 
 type InsertUnMatedHeaderFunc func(ctx context.Context, logger *zap.Logger) (int, error)
@@ -224,36 +262,8 @@ type GetListResultFunc func(ctx context.Context, logger *zap.Logger) ([]ResultSt
 
 func GetListResult(db *pgxpool.Pool) GetListResultFunc {
 	return func(ctx context.Context, logger *zap.Logger) ([]ResultStruct, error) {
-		currentDate := time.Now()
-		currentMonth := currentDate.Format("y2006m01")
-		isFirstDayOfMonth := currentDate.Day() == 1
-		sql := `
-				select COALESCE( ttr.transaction_id ,-1)as transactionResultId
-			, trb.transaction_bank_id   as aspBankId
-			, COALESCE( tdkr.transaction_bank_id , '') as kbankId
-			, COALESCE( ttr.status ,'')
-			, COALESCE( tt.channel_code ,'')as channelCode
-			,COALESCE( tdkr.rs_trans_id  , '') as rsTransId
-			, trb.payment_message_json as payment
-			, trb.fund_transfer_transaction_json  as fundTransfer
-			from tbl_reconcile_bank trb   left outer join tbl_daily_kbank_reconcile tdkr 
-			on trb.transaction_bank_id  = tdkr.transaction_bank_id  left outer join tbl_transaction_%s tt 
-			on trb.transaction_id  = tt.transaction_id left outer join tbl_transaction_result_%s   ttr
-			on tt.transaction_id  = ttr.transaction_id 
-		`
-		sqlFormat := ""
-		if isFirstDayOfMonth {
-			previousMonth := currentDate.AddDate(0, -1, 0)
-			previousMonthFormatted := previousMonth.Format("y2006m01")
-			sql = sql + `   left outer join tbl_transaction_%s tt2 
-			on tt2.transaction_id  = trb.transaction_id left outer join tbl_transaction_result_%s ttr2 
-			on ttr.transaction_id  = trb.transaction_id   `
-			sqlFormat = fmt.Sprintf(sql, currentMonth, currentMonth, previousMonthFormatted, previousMonthFormatted)
-		} else {
-			sqlFormat = fmt.Sprintf(sql, currentMonth, currentMonth)
-		}
 
-		sqlFormat = sqlFormat + `   where DATE(trb.created_date) = CURRENT_DATE  - INTERVAL '1 DAY' `
+		sqlFormat := GetSqlFormat()
 		rows, err := db.Query(ctx, sqlFormat)
 		if err != nil {
 			logger.Error("Error executing ", zap.Any("", err.Error()))
@@ -264,7 +274,7 @@ func GetListResult(db *pgxpool.Pool) GetListResultFunc {
 		var results []ResultStruct
 		for rows.Next() {
 			var result ResultStruct
-			err := rows.Scan(&result.TransactionResultId, &result.AspBankId, &result.KBankId, &result.Status, &result.ChannelCode, &result.RsTransID, &result.PaymentMessage, &result.FundTransferTransactionModel)
+			err := rows.Scan(&result.TransactionResultId, &result.AspBankId, &result.KBankId, &result.Status, &result.ChannelCode, &result.RsTransID, &result.PaymentMessage, &result.FundTransferTransactionModel, &result.TransactionId)
 			if err != nil {
 				logger.Error("Error scanning  row", zap.Any("", err.Error()))
 				return []ResultStruct{}, err
@@ -273,5 +283,101 @@ func GetListResult(db *pgxpool.Pool) GetListResultFunc {
 		}
 
 		return results, nil
+	}
+}
+
+func GetSqlFormat() string {
+	currentDate := time.Now()
+	currentMonth := currentDate.Format("y2006m01")
+	isFirstDayOfMonth := currentDate.Day() == 1
+	sql := ""
+	if isFirstDayOfMonth {
+		sql = sql + ` select COALESCE( ttr.transaction_id ,tt2.transaction_id,-1)as transactionResultId `
+	} else {
+		sql = sql + ` select COALESCE( ttr.transaction_id ,-1)as transactionResultId `
+	}
+	sql = sql + `		
+		
+			, trb.transaction_bank_id   as aspBankId
+			, COALESCE( tdkr.transaction_bank_id , '') as kbankId
+			, COALESCE( ttr.status ,'')
+			, COALESCE( tt.channel_code ,'')as channelCode
+			,COALESCE( tdkr.rs_trans_id  , '') as rsTransId
+			, trb.payment_message_json as payment
+			, trb.fund_transfer_transaction_json  as fundTransfer
+			,trb.transaction_id
+			from tbl_reconcile_bank trb   left outer join tbl_daily_kbank_reconcile tdkr 
+			on trb.transaction_bank_id  = tdkr.transaction_bank_id  left outer join tbl_transaction_%s tt 
+			on trb.transaction_id  = tt.transaction_id left outer join tbl_transaction_result_%s   ttr
+			on tt.transaction_id  = ttr.transaction_id 
+
+		`
+	sqlFormat := ""
+	if isFirstDayOfMonth {
+		previousMonth := currentDate.AddDate(0, -1, 0)
+		previousMonthFormatted := previousMonth.Format("y2006m01")
+		sql = sql + `   left outer join tbl_transaction_%s tt2 
+			on tt2.transaction_id  = trb.transaction_id left outer join tbl_transaction_result_%s ttr2 
+			on ttr.transaction_id  = trb.transaction_id   `
+		sqlFormat = fmt.Sprintf(sql, currentMonth, currentMonth, previousMonthFormatted, previousMonthFormatted)
+	} else {
+		sqlFormat = fmt.Sprintf(sql, currentMonth, currentMonth)
+	}
+
+	sqlFormat = sqlFormat + `   where DATE(trb.created_date) = CURRENT_DATE  - INTERVAL '1 DAY' `
+	return sqlFormat
+}
+
+type InsertRevertBankFunc func(ctx context.Context, tx pgx.Tx, fundTransfer FundTransferTransactionModel, logger *zap.Logger, txnId decimal.Decimal) error
+
+func InsertRevertBank() InsertRevertBankFunc {
+
+	return func(ctx context.Context, tx pgx.Tx, fundTransfer FundTransferTransactionModel, logger *zap.Logger, txnId decimal.Decimal) error {
+
+		query := `INSERT INTO tbl_bank_transaction (
+			channel_code,
+			reference_no,
+			transaction_id,
+            transaction_bank_id,
+			transaction_type,
+			amount,
+			request_result_json,
+			response_result_json,
+			response_code,
+			response_message,
+			reference_no_1,
+			reference_no_2,
+			reference_no_3,
+			reference_no_4,
+            recovery_flag,                                   
+			created_by
+		) VALUES (@channelCode, @referenceNo, @transactionId, @transactionBankId,@transactionType,
+		          @amount, @requestResult, @responseResult, @responseCode, @responseMessage,
+		          @referenceNo1, @referenceNo2, @referenceNo3, @referenceNo4, @recoveryFlag, @createBy)`
+		args := pgx.NamedArgs{
+			"channelCode":       fundTransfer.ChannelCode,
+			"referenceNo":       fundTransfer.ReferenceNo,
+			"transactionId":     txnId,
+			"transactionBankId": fundTransfer.TransactionID,
+			"transactionType":   fundTransfer.TransactionType,
+			"amount":            fundTransfer.Amount,
+			"requestResult":     fundTransfer.RequestResult,
+			"responseResult":    fundTransfer.ResponseResult,
+			"responseCode":      fundTransfer.ResponseCode,
+			"responseMessage":   fundTransfer.ResponseMessage,
+			"referenceNo1":      fundTransfer.ReferenceNo1,
+			"referenceNo2":      fundTransfer.ReferenceNo2,
+			"referenceNo3":      fundTransfer.ReferenceNo3,
+			"referenceNo4":      fundTransfer.ReferenceNo4,
+			"recoveryFlag":      "1",
+			"createBy":          fundTransfer.ChannelCode,
+		}
+
+		_, err := tx.Exec(ctx, query, args)
+		if err != nil {
+			logger.Error("Error on insert bank transaction", zap.Error(err))
+			return rollbackConfirmTxn(ctx, tx, err)
+		}
+		return nil
 	}
 }

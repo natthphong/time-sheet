@@ -75,6 +75,29 @@ func (c *Client) Download(filePath string) ([]byte, error) {
 	return ioutil.ReadAll(file)
 }
 
+func (c *Client) ListFiles(path string) ([]string, error) {
+	if err := c.connect(); err != nil {
+		return nil, fmt.Errorf("connect: %w", err)
+	}
+
+	entries, err := c.sftpClient.ReadDir(path)
+	if err != nil {
+		return nil, fmt.Errorf("read directory: %w", err)
+	}
+
+	var files []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			// You may choose to skip directories, or include them in the result.
+			// If you want to include directories, you can append entry.Name() to the 'files' slice.
+			continue
+		}
+		files = append(files, entry.Name())
+	}
+
+	return files, nil
+}
+
 // Info gets the details of a file. If the file was not found, an error is returned.
 func (c *Client) Info(filePath string) (os.FileInfo, error) {
 	if err := c.connect(); err != nil {

@@ -1,5 +1,10 @@
 package job
 
+import (
+	"encoding/json"
+	"github.com/shopspring/decimal"
+)
+
 const (
 	SuccessFundTransfer        = "0000"
 	OtherExceptionFundTransfer = "9999"
@@ -314,7 +319,23 @@ type InquiryStatusResponse struct {
 	SettlementDate   string `json:"settlementDate"`
 	FailMsg          string `json:"failMsg"`
 }
-
+type FundTransferTransactionModel struct {
+	ChannelCode     string
+	ReferenceNo     string
+	TransactionID   string
+	TransactionType string
+	Amount          decimal.Decimal
+	RequestResult   json.RawMessage
+	ResponseResult  json.RawMessage
+	ResponseCode    string
+	ResponseMessage string
+	ReferenceNo1    string
+	ReferenceNo2    string
+	ReferenceNo3    string
+	ReferenceNo4    string
+	RecoveryFlag    string
+	CreatedBy       string
+}
 type KafkaMessageModel struct {
 	TopicRes string         `json:"topicRes"`
 	Message  PaymentMessage `json:"message"`
