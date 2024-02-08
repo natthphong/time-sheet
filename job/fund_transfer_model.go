@@ -340,3 +340,8 @@ type KafkaMessageModel struct {
 	TopicRes string         `json:"topicRes"`
 	Message  PaymentMessage `json:"message"`
 }
+
+const (
+	RevertStatus     = "REVERT"
+	TxnStatusSuccess = "Success"
+)

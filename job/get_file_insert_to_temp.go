@@ -13,6 +13,7 @@ import (
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/config"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/sftp"
 	"go.uber.org/zap"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -39,7 +40,7 @@ func GetFileInsertToTblTemp(
 	downLoadFileAndPushToS3Func DownLoadFileAndPushToS3Func,
 	InsertKBANKDailyTempFunc InsertKBANKDailyTempFunc,
 ) error {
-	layout := "20060102 15:04:05:000"
+
 	var list []DailyKBankReconcile
 	formattedDate := time.Now().Format("20060102")
 
@@ -66,8 +67,8 @@ func GetFileInsertToTblTemp(
 			temp := DailyKBankReconcile{
 				RSTransID:            rows[0],
 				TransactionBankID:    rows[1],
-				RequestDateTime:      ToTime(layout, rows[2]),
-				FundTransferDateTime: ToTime(layout, rows[3]),
+				RequestDateTime:      ToTime(rows[2]),
+				FundTransferDateTime: ToTime(rows[3]),
 				TransType:            rows[4],
 				ProxyValue:           rows[5],
 				Amount:               ToDecimal(rows[6]),
@@ -92,7 +93,7 @@ func ToDecimal(str string) decimal.Decimal {
 	return v
 }
 
-func ToTime(layout, str string) time.Time {
+func ToTime(str string) time.Time {
 	//fmt.Println("str", str)
 	//v, err := time.Parse(layout, str)
 	//if err != nil {
@@ -106,7 +107,15 @@ func ToTime(layout, str string) time.Time {
 	//if err != nil {
 	//	fmt.Println("parse date", err.Error())
 	//}
-	return time.Now()
+	layout := "20060102 15:04:05.000"
+	re := regexp.MustCompile(`^(.*?:.*?:.*?):(.*?)$`)
+
+	output := re.ReplaceAllString(str, "$1.$2")
+	v, err := time.Parse(layout, output)
+	if err != nil {
+		fmt.Println("parse date", err.Error())
+	}
+	return v
 }
 
 type InsertKBANKDailyTempFunc func(ctx context.Context, logger *zap.Logger, list []DailyKBankReconcile) error

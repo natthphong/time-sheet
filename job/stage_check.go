@@ -134,7 +134,7 @@ func InsertUnMatedDetail(
 
 				if r.KBankId == "" {
 					if r.TransactionResultId.IsNegative() {
-						temp.Reason = "REVERT"
+						temp.Reason = RevertStatus
 						payment.ToRevert = true
 						payment.FundTransferTransactionModel = r.FundTransferTransactionModel
 						var fundTransferModel FundTransferTransactionModel
@@ -155,8 +155,6 @@ func InsertUnMatedDetail(
 
 				} else if r.TransactionResultId.IsNegative() {
 
-					logger.Info("tra", zap.Any(" r.TransactionResultId", r.TransactionResultId),
-						zap.Any("r.TransactionId", r.TransactionId))
 					inquiryStatusRequest := eft.InquiryStatusRequest{
 						MerchantID:      fundTransferConfig.MerchantID,
 						RequestDateTime: requestDateTime,
@@ -171,7 +169,7 @@ func InsertUnMatedDetail(
 					} else {
 						status := inquiryStatusRes.TxnStatus
 						temp.BankStatus = status
-						if strings.EqualFold(status, "Success") {
+						if strings.EqualFold(status, TxnStatusSuccess) {
 							temp.Reason = status
 							err := sendMessageSyncWithTopicFunc(logger, payment, topicFinal)
 							if err != nil {
@@ -179,7 +177,7 @@ func InsertUnMatedDetail(
 							}
 							unmatchedDetails = append(unmatchedDetails, temp)
 						} else {
-							temp.Reason = "REVERT"
+							temp.Reason = RevertStatus
 							payment.ToRevert = true
 							var fundTransferModel FundTransferTransactionModel
 							err := json.Unmarshal(r.FundTransferTransactionModel, &fundTransferModel)
