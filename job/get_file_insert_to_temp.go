@@ -42,7 +42,7 @@ func GetFileInsertToTblTemp(
 ) error {
 
 	var list []DailyKBankReconcile
-	formattedDate := time.Now().Format("20060102")
+	formattedDate := time.Now().AddDate(0, 0, -1).Format("20060102")
 
 	fileName := fmt.Sprintf(cfg.SFTPConfig.Destination.PrefixFileName, formattedDate)
 	err := downLoadFileAndPushToS3Func(ctx, logger, fileName, cfg.SFTPConfig.Directory)
@@ -155,13 +155,16 @@ func DownLoadFileAndPushToS3(
 ) DownLoadFileAndPushToS3Func {
 	return func(ctx context.Context, logger *zap.Logger, fileName, folder string) error {
 		key := fmt.Sprintf("%s/%s", folder, fileName)
-
+		//
 		//listFile, err := sftp.ListFiles(folder)
 		//if err != nil {
 		//	logger.Error(err.Error())
 		//}
 		//logger.Info("smft", zap.Any("file", listFile))
 		byteFile, err := sftp.Download(key)
+		if err != nil {
+			return err
+		}
 
 		fileReader := bytes.NewReader(byteFile)
 		err = putFileToS3(fileName, folder, fileReader, svc)
