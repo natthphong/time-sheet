@@ -161,6 +161,7 @@ func DownLoadFileAndPushToS3(
 		//	logger.Error(err.Error())
 		//}
 		//logger.Info("smft", zap.Any("file", listFile))
+		logger.Info("key ", zap.Any("file", key))
 		byteFile, err := sftp.Download(key)
 		if err != nil {
 			return err

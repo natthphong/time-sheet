@@ -26,6 +26,11 @@ import (
 )
 
 func main() {
+
+	lambda.Start(LambdaHandler)
+}
+
+func LambdaHandler() {
 	ctx := context.Background()
 
 	config.InitTimeZone()
@@ -38,7 +43,7 @@ func main() {
 	}
 
 	logz.Init(cfg.Log.Level, cfg.Server.Name)
-	defer logz.Drop()
+	//defer logz.Drop()
 
 	ctx, cancel = context.WithCancel(ctx)
 	defer cancel()
@@ -165,11 +170,5 @@ func main() {
 	if err != nil {
 		logger.Error("StageCheckFunc", zap.Any("err ", err))
 	}
-
-	lambda.Start(LambdaHandler)
-}
-
-func LambdaHandler() {
-
 	fmt.Print("end ")
 }
