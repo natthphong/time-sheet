@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/config"
-	"golang.org/x/exp/slices"
 	"os"
 
 	"go.uber.org/zap"
@@ -350,14 +349,6 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 				if err != nil {
 					logger.Error("Unmarshal", zap.Error(err))
 					newRetry--
-					time.Sleep(wait)
-					continue
-				}
-
-				if slices.Contains(exceptionInquiryStatus, response.TxnStatus) {
-					logger.Error(fmt.Sprintf("transaction is (%s)", response.TxnStatus))
-					newRetry--
-
 					time.Sleep(wait)
 					continue
 				}
