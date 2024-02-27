@@ -207,8 +207,8 @@ func InitConfig() (*Config, error) {
 	viper.SetDefault("FUNDTRANSFERCONFIG.AUTH", os.Getenv("fundTranFerAuth"))
 	viper.SetDefault("FUNDTRANSFERCONFIG.SENDERNAME", "AURORA TRADING CO.LTD.")
 	viper.SetDefault("FUNDTRANSFERCONFIG.TYPEOFSENDER", "K")
-	viper.SetDefault("FUNDTRANSFERCONFIG.INQUIRYSTATUSRETRY", 3)
-	viper.SetDefault("FUNDTRANSFERCONFIG.OauthRetry", 5)
+	viper.SetDefault("FUNDTRANSFERCONFIG.INQUIRYSTATUSRETRY", os.Getenv("inqRetry"))
+	viper.SetDefault("FUNDTRANSFERCONFIG.OauthRetry", os.Getenv("authRetry"))
 
 	viper.SetDefault("HTTP.TIMEOUT", "10s")
 	viper.SetDefault("HTTP.MAXIDLECONN", 100)
