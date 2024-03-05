@@ -3,6 +3,7 @@ package secret
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
@@ -63,9 +64,12 @@ func ConfigCommonSecret(cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	keyDecode, err := base64.StdEncoding.DecodeString(commonConfig.KeyFile)
-	if err != nil {
-		return err
+	var keyDecode []byte
+	if commonConfig.KeyFile != "" {
+		keyDecode, err = base64.StdEncoding.DecodeString(commonConfig.KeyFile)
+		if err != nil {
+			fmt.Print("keyFile decode", err.Error())
+		}
 	}
 
 	cfg.HTTP.CertFile = certDecode

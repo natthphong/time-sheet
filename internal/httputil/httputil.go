@@ -37,8 +37,7 @@ func InitHttpClient(timeout time.Duration, maxIdleConn, maxIdleConnPerHost, maxC
 	return client
 }
 
-func InitHttpClientWithCert(timeout time.Duration, maxIdleConns, maxIdleConnsPerHost, maxConnsPerHost int, CertFile, KeyFile []byte) (*http.Client, error) {
-	//cert, err := tls.LoadX509KeyPair(CertFile, KeyFile)
+func InitHttpClientWithCertAndKey(timeout time.Duration, maxIdleConns, maxIdleConnsPerHost, maxConnsPerHost int, CertFile, KeyFile []byte) (*http.Client, error) {
 
 	cert, err := tls.X509KeyPair(CertFile, KeyFile)
 	if err != nil {
@@ -56,6 +55,25 @@ func InitHttpClientWithCert(timeout time.Duration, maxIdleConns, maxIdleConnsPer
 			TLSClientConfig: &tls.Config{
 				Certificates:       []tls.Certificate{cert},
 				RootCAs:            rootCAs,
+				InsecureSkipVerify: true,
+			},
+			MaxIdleConns:        maxIdleConns,
+			MaxIdleConnsPerHost: maxIdleConnsPerHost,
+			MaxConnsPerHost:     maxConnsPerHost,
+		},
+	}
+	return client, nil
+}
+
+func InitHttpClientWithCert(timeout time.Duration, maxIdleConns, maxIdleConnsPerHost, maxConnsPerHost int, CertFile []byte) (*http.Client, error) {
+	//cert, err := tls.LoadX509KeyPair(CertFile, KeyFile)
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(CertFile)
+	client := &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:            certPool,
 				InsecureSkipVerify: true,
 			},
 			MaxIdleConns:        maxIdleConns,
