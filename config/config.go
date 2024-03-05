@@ -203,7 +203,7 @@ func InitConfig() (*Config, error) {
 	viper.SetDefault("FUNDTRANSFERCONFIG.CONSUMERID", os.Getenv("fundTranFerConsumerId"))
 	viper.SetDefault("FUNDTRANSFERCONFIG.CONSUMERSECRET", os.Getenv("fundTranFerConsumerSecret"))
 	viper.SetDefault("FUNDTRANSFERCONFIG.MerchantID", "ARRT")
-	viper.SetDefault("FUNDTRANSFERCONFIG.FROMACCOUNTNO", "0481418100")
+	viper.SetDefault("FUNDTRANSFERCONFIG.FROMACCOUNTNO", os.Getenv("fundTranFerFrom"))
 	viper.SetDefault("FUNDTRANSFERCONFIG.AUTH", os.Getenv("fundTranFerAuth"))
 	viper.SetDefault("FUNDTRANSFERCONFIG.SENDERNAME", "AURORA TRADING CO.LTD.")
 	viper.SetDefault("FUNDTRANSFERCONFIG.TYPEOFSENDER", "K")
