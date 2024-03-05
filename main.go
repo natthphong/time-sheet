@@ -74,13 +74,11 @@ func LambdaHandler() {
 	defer redisClient.Close()
 	redisCmd := redisClient.CMD()
 
-	httpClient, err := httputil.InitHttpClient(
+	httpClient := httputil.InitHttpClient(
 		cfg.HTTP.TimeOut,
 		cfg.HTTP.MaxIdleConn,
 		cfg.HTTP.MaxIdleConnPerHost,
 		cfg.HTTP.MaxConnPerHost,
-		cfg.HTTP.CertFile,
-		cfg.HTTP.KeyFile,
 	)
 
 	if err != nil {

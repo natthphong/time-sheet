@@ -20,7 +20,24 @@ type HTTPPostRequestFunc func(reqBody interface{}, requestRef *string) ([]byte, 
 type HTTPPostPaymentRequestFunc func(url string, reqBody []byte, auth string, contentType string) ([]byte, error)
 type HttpPostOddPaymentRequestFunc func(reqBody []byte) ([]byte, error)
 
-func InitHttpClient(timeout time.Duration, maxIdleConns, maxIdleConnsPerHost, maxConnsPerHost int, CertFile, KeyFile []byte) (*http.Client, error) {
+func InitHttpClient(timeout time.Duration, maxIdleConn, maxIdleConnPerHost, maxConnPerHost int) *http.Client {
+	certPool := x509.NewCertPool()
+	client := &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:            certPool,
+				InsecureSkipVerify: true,
+			},
+			MaxIdleConns:        maxIdleConn,
+			MaxIdleConnsPerHost: maxIdleConnPerHost,
+			MaxConnsPerHost:     maxConnPerHost,
+		},
+	}
+	return client
+}
+
+func InitHttpClientWithCert(timeout time.Duration, maxIdleConns, maxIdleConnsPerHost, maxConnsPerHost int, CertFile, KeyFile []byte) (*http.Client, error) {
 	//cert, err := tls.LoadX509KeyPair(CertFile, KeyFile)
 
 	cert, err := tls.X509KeyPair(CertFile, KeyFile)
