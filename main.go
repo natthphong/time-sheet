@@ -77,6 +77,7 @@ func LambdaHandler() {
 	redisCmd := redisClient.CMD()
 
 	var httpClient *http.Client
+	logger.Debug("cert", zap.Any("", string(cfg.HTTP.CertFile)))
 	if strings.Contains(cfg.Env, "UAT") {
 		httpClient, err = httputil.InitHttpClientWithCertAndKey(
 			cfg.HTTP.TimeOut,
