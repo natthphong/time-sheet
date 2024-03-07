@@ -160,7 +160,7 @@ func InitConfig() (*Config, error) {
 	viper.SetDefault("ENV", os.Getenv("ENV"))
 	viper.SetDefault("EnableS3", os.Getenv("enableS3"))
 	viper.SetDefault("SERVER.NAME", "reconcile-daily")
-	viper.SetDefault("LOG.LEVEL", "info")
+	viper.SetDefault("LOG.LEVEL", os.Getenv("logLevel"))
 	viper.SetDefault("EXCEPTION.CODE.SystemError", "999")
 	viper.SetDefault("EXCEPTION.DESCRIPTION.SystemError", "System error")
 

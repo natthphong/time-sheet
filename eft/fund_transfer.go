@@ -231,7 +231,24 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 				if httpRes.StatusCode < 200 || httpRes.StatusCode > 299 {
 					logger.Error(fmt.Sprintf("HTTP status code out of range (%d)", httpRes.StatusCode))
 					retry--
+					tlsInfo := httpRes.TLS
+					if tlsInfo != nil {
+						for _, cert := range tlsInfo.PeerCertificates {
+							fmt.Println("Subject:", cert.Subject.CommonName)
+							fmt.Println("Issuer:", cert.Issuer.CommonName)
+							fmt.Println("Expires:", cert.NotAfter)
+						}
+					} else {
+						fmt.Println("No TLS information available")
+					}
+					body, err := io.ReadAll(httpRes.Body)
+					if err != nil {
+						logger.Error("Error on read response", zap.Error(err))
+						time.Sleep(wait)
+						continue
+					}
 
+					logger.Debug("Response Message ", zap.Any("body", string(body)))
 					time.Sleep(wait)
 					continue
 				}
@@ -333,6 +350,24 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 				if httpRes.StatusCode < 200 || httpRes.StatusCode > 299 {
 					logger.Error(fmt.Sprintf("HTTP status code out of range (%d)", httpRes.StatusCode))
 					newRetry--
+					tlsInfo := httpRes.TLS
+					if tlsInfo != nil {
+						for _, cert := range tlsInfo.PeerCertificates {
+							fmt.Println("Subject:", cert.Subject.CommonName)
+							fmt.Println("Issuer:", cert.Issuer.CommonName)
+							fmt.Println("Expires:", cert.NotAfter)
+						}
+					} else {
+						fmt.Println("No TLS information available")
+					}
+					body, err := io.ReadAll(httpRes.Body)
+					if err != nil {
+						logger.Error("Error on read response", zap.Error(err))
+						time.Sleep(wait)
+						continue
+					}
+
+					logger.Debug("Response Message ", zap.Any("body", string(body)))
 					time.Sleep(wait)
 					continue
 				}
