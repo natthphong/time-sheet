@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/config"
+	"os"
 
 	"github.com/shopspring/decimal"
 
@@ -59,17 +60,20 @@ func ConfigCommonSecret(cfg *config.Config) error {
 		cfg.RedisConfig.Password = commonConfig.RedisPassword
 	}
 
-	certDecode, err := base64.StdEncoding.DecodeString(commonConfig.CertFile)
-	if err != nil {
-		return err
-	}
-	keyDecode, err := base64.StdEncoding.DecodeString(commonConfig.KeyFile)
-	if err != nil {
-		return err
-	}
+	fixCert := os.Getenv("fixCert")
+	if fixCert == "" {
+		certDecode, err := base64.StdEncoding.DecodeString(commonConfig.CertFile)
+		if err != nil {
+			return err
+		}
+		keyDecode, err := base64.StdEncoding.DecodeString(commonConfig.KeyFile)
+		if err != nil {
+			return err
+		}
 
-	cfg.HTTP.CertFile = certDecode
-	cfg.HTTP.KeyFile = keyDecode
+		cfg.HTTP.KeyFile = keyDecode
+		cfg.HTTP.CertFile = certDecode
+	}
 
 	decodedPrivateKey, err := base64.StdEncoding.DecodeString(cfg.Secret.Private)
 	if err != nil {
