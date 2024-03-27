@@ -3,6 +3,7 @@ package secret
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
@@ -60,16 +61,17 @@ func ConfigCommonSecret(cfg *config.Config) error {
 		cfg.RedisConfig.Password = commonConfig.RedisPassword
 	}
 
-	fixCert := os.Getenv("fixCert")
-	if fixCert == "" {
-		certDecode, err := base64.StdEncoding.DecodeString(commonConfig.CertFile)
+	certDecode, err := base64.StdEncoding.DecodeString(commonConfig.CertFile)
+	if err != nil {
+		return err
+	}
+	var keyDecode []byte
+	if commonConfig.KeyFile != "" {
+		keyDecode, err = base64.StdEncoding.DecodeString(commonConfig.KeyFile)
 		if err != nil {
-			return err
+			fmt.Print("keyFile decode", err.Error())
 		}
-		keyDecode, err := base64.StdEncoding.DecodeString(commonConfig.KeyFile)
-		if err != nil {
-			return err
-		}
+	}
 
 		cfg.HTTP.KeyFile = keyDecode
 		cfg.HTTP.CertFile = certDecode

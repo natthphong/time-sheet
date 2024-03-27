@@ -22,6 +22,8 @@ import (
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/job"
 	"go.uber.org/zap"
 	"log"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -74,14 +76,26 @@ func LambdaHandler() {
 	defer redisClient.Close()
 	redisCmd := redisClient.CMD()
 
-	httpClient, err := httputil.InitHttpClientWithCert(
-		cfg.HTTP.TimeOut,
-		cfg.HTTP.MaxIdleConn,
-		cfg.HTTP.MaxIdleConnPerHost,
-		cfg.HTTP.MaxConnPerHost,
-		cfg.HTTP.CertFile,
-		cfg.HTTP.KeyFile,
-	)
+	var httpClient *http.Client
+	logger.Debug("cert", zap.Any("", string(cfg.HTTP.CertFile)))
+	if strings.Contains(cfg.Env, "UAT") {
+		httpClient, err = httputil.InitHttpClientWithCertAndKey(
+			cfg.HTTP.TimeOut,
+			cfg.HTTP.MaxIdleConn,
+			cfg.HTTP.MaxIdleConnPerHost,
+			cfg.HTTP.MaxConnPerHost,
+			cfg.HTTP.CertFile,
+			cfg.HTTP.KeyFile,
+		)
+	} else {
+		httpClient, err = httputil.InitHttpClientWithCert(
+			cfg.HTTP.TimeOut,
+			cfg.HTTP.MaxIdleConn,
+			cfg.HTTP.MaxIdleConnPerHost,
+			cfg.HTTP.MaxConnPerHost,
+			cfg.HTTP.CertFile,
+		)
+	}
 
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Error in init httpClient."))

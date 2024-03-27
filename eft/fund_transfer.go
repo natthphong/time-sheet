@@ -246,14 +246,15 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 					}
 				}
 				if httpRes.StatusCode < 200 || httpRes.StatusCode > 299 {
-					logger.Error(fmt.Sprintf("HTTP status code out of range (%d)", httpRes.StatusCode))
 					retry--
 					body, err := io.ReadAll(httpRes.Body)
 					if err != nil {
 						logger.Error("Error on read response", zap.Error(err))
+						retry--
 						time.Sleep(wait)
 						continue
 					}
+					logger.Debug(fmt.Sprintf("HTTP status code out of range (%d) \n%s", httpRes.StatusCode, string(body)))
 
 					logger.Debug("Response Message ", zap.Any("body", string(body)))
 					time.Sleep(wait)
@@ -371,17 +372,15 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 					}
 				}
 				if httpRes.StatusCode < 200 || httpRes.StatusCode > 299 {
-					logger.Error(fmt.Sprintf("HTTP status code out of range (%d)", httpRes.StatusCode))
 					newRetry--
-
 					body, err := io.ReadAll(httpRes.Body)
 					if err != nil {
 						logger.Error("Error on read response", zap.Error(err))
+						retry--
 						time.Sleep(wait)
 						continue
 					}
-
-					logger.Debug("Response Message ", zap.Any("body", string(body)))
+					logger.Error(fmt.Sprintf("HTTP status code out of range (%d) \n%s", httpRes.StatusCode, string(body)))
 					time.Sleep(wait)
 					continue
 				}
