@@ -1,16 +1,12 @@
 package secret
 
 import (
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
-	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/config"
-	"os"
-
 	"github.com/shopspring/decimal"
+	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/config"
 
 	"strings"
 )
@@ -61,27 +57,12 @@ func ConfigCommonSecret(cfg *config.Config) error {
 		cfg.RedisConfig.Password = commonConfig.RedisPassword
 	}
 
-	certDecode, err := base64.StdEncoding.DecodeString(commonConfig.CertFile)
-	if err != nil {
-		return err
-	}
-	var keyDecode []byte
-	if commonConfig.KeyFile != "" {
-		keyDecode, err = base64.StdEncoding.DecodeString(commonConfig.KeyFile)
-		if err != nil {
-			fmt.Print("keyFile decode", err.Error())
-		}
-	}
-
-		cfg.HTTP.KeyFile = keyDecode
-		cfg.HTTP.CertFile = certDecode
-	}
-
-	decodedPrivateKey, err := base64.StdEncoding.DecodeString(cfg.Secret.Private)
-	if err != nil {
-		return err
-	}
-	cfg.Secret.Private = string(decodedPrivateKey)
+	//
+	//decodedPrivateKey, err := base64.StdEncoding.DecodeString(cfg.Secret.Private)
+	//if err != nil {
+	//	return err
+	//}
+	//cfg.Secret.Private = string(decodedPrivateKey)
 
 	return nil
 }
