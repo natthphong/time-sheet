@@ -55,7 +55,7 @@ func InitHttpClientWithCertAndKey(timeout time.Duration, maxIdleConns, maxIdleCo
 			TLSClientConfig: &tls.Config{
 				Certificates:       []tls.Certificate{cert},
 				RootCAs:            rootCAs,
-				InsecureSkipVerify: true,
+				InsecureSkipVerify: false,
 			},
 			MaxIdleConns:        maxIdleConns,
 			MaxIdleConnsPerHost: maxIdleConnsPerHost,

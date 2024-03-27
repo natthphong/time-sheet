@@ -218,6 +218,7 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 			req.Header.Set("Authorization", basicAuth)
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			req.Header.Set("env-id", "OAUTH2")
+
 			httpRes, err = client.Do(req)
 			if err != nil {
 				logger.Error("Error on call http request", zap.Error(err))
@@ -228,6 +229,22 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 
 			if httpRes != nil {
 
+				tlsInfo := req.TLS
+				if tlsInfo != nil {
+					for _, cert := range tlsInfo.PeerCertificates {
+						v, _ := json.Marshal(cert)
+						logger.Debug("Cert", zap.Any("Request", string(v)))
+
+					}
+				}
+				tlsInfo = httpRes.TLS
+				if tlsInfo != nil {
+					for _, cert := range tlsInfo.PeerCertificates {
+						v, _ := json.Marshal(cert)
+						logger.Debug("Cert", zap.Any("Response", string(v)))
+
+					}
+				}
 				if httpRes.StatusCode < 200 || httpRes.StatusCode > 299 {
 					retry--
 					body, err := io.ReadAll(httpRes.Body)
@@ -239,6 +256,7 @@ func HTTPOauthFundTransferHttp(client *http.Client, url string, toggle config.To
 					}
 					logger.Debug(fmt.Sprintf("HTTP status code out of range (%d) \n%s", httpRes.StatusCode, string(body)))
 
+					logger.Debug("Response Message ", zap.Any("body", string(body)))
 					time.Sleep(wait)
 					continue
 				}
@@ -337,6 +355,22 @@ func HTTPInquiryStatusFundTransfer(client *http.Client, url string, toggle confi
 				continue
 			}
 			if httpRes != nil {
+				tlsInfo := httpReq.TLS
+				if tlsInfo != nil {
+					for _, cert := range tlsInfo.PeerCertificates {
+						v, _ := json.Marshal(cert)
+						logger.Debug("Cert", zap.Any("Request", string(v)))
+
+					}
+				}
+				tlsInfo = httpRes.TLS
+				if tlsInfo != nil {
+					for _, cert := range tlsInfo.PeerCertificates {
+						v, _ := json.Marshal(cert)
+						logger.Debug("Cert", zap.Any("Response", string(v)))
+
+					}
+				}
 				if httpRes.StatusCode < 200 || httpRes.StatusCode > 299 {
 					newRetry--
 					body, err := io.ReadAll(httpRes.Body)
