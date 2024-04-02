@@ -90,9 +90,13 @@ func LambdaHandler() {
 	svc := s3.New(sess)
 	_ = svc
 
-	job.BackUpHisPricing(
+	err = job.BackUpHisPricing(
 		job.GetDataHisPricing(dbPool),
 		job.PushToS3(svc, cfg),
 	)
+	if err != nil {
+		panic(err)
+	}
+
 	fmt.Print("end ")
 }

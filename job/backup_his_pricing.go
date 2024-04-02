@@ -12,7 +12,6 @@ import (
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/config"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/logz"
 	"go.uber.org/zap"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -20,27 +19,38 @@ import (
 func BackUpHisPricing(
 	GetDataHisPricingFunc GetDataHisPricingFunc,
 	PushToS3Func PushToS3Func,
-) {
+) error {
 	logger := logz.NewLogger()
 	ctx := context.Background()
-	zipFile, err := GetDataHisPricingFunc(ctx, logger)
-	if err != nil {
-		logger.Error("Error GetDataHisPricingFunc", zap.Any("", err.Error()))
-	}
-	err = PushToS3Func(ctx, logger, zipFile)
-	if err != nil {
-		logger.Error("Error PushToS3Func", zap.Any("", err.Error()))
+	_ = ctx
+	currentDate, err := time.Parse("2006/01", "2023/02")
+	for i := 0; i < 11; i++ {
+		tempCurrentDate := currentDate.AddDate(0, i, 0)
+		if err != nil {
+			logger.Error("Error Parse date ", zap.Any("", err.Error()))
+			return err
+		}
+		partitions := tempCurrentDate.Format("y2006m01")
+		zipFile, err := GetDataHisPricingFunc(ctx, logger, partitions)
+		if err != nil {
+			logger.Error("Error GetDataHisPricingFunc", zap.Any("", err.Error()))
+			return err
+		}
+		err = PushToS3Func(ctx, logger, zipFile, partitions)
+		if err != nil {
+			logger.Error("Error PushToS3Func", zap.Any("", err.Error()))
+			return err
+		}
 	}
 
+	return nil
 }
 
-type PushToS3Func func(ctx context.Context, logger *zap.Logger, zipFile bytes.Buffer) error
+type PushToS3Func func(ctx context.Context, logger *zap.Logger, zipFile bytes.Buffer, partitions string) error
 
 func PushToS3(svc *s3.S3, cfg *config.Config) PushToS3Func {
-	return func(ctx context.Context, logger *zap.Logger, zipFile bytes.Buffer) error {
-
-		formattedDate := time.Now().Format("20060102")
-		key := fmt.Sprintf(cfg.S3Config.Key, formattedDate)
+	return func(ctx context.Context, logger *zap.Logger, zipFile bytes.Buffer, partitions string) error {
+		key := fmt.Sprintf(cfg.S3Config.Key, partitions)
 		_, err := svc.PutObject(&s3.PutObjectInput{
 			Bucket: &cfg.S3Config.BucketName,
 			Key:    &key,
@@ -49,15 +59,18 @@ func PushToS3(svc *s3.S3, cfg *config.Config) PushToS3Func {
 		if err != nil {
 			return err
 		}
+		defer func() {
+			zipFile.Reset()
+		}()
 
 		return nil
 	}
 }
 
-type GetDataHisPricingFunc func(ctx context.Context, logger *zap.Logger) (bytes.Buffer, error)
+type GetDataHisPricingFunc func(ctx context.Context, logger *zap.Logger, partitions string) (bytes.Buffer, error)
 
 func GetDataHisPricing(db *pgxpool.Pool) GetDataHisPricingFunc {
-	return func(ctx context.Context, logger *zap.Logger) (bytes.Buffer, error) {
+	return func(ctx context.Context, logger *zap.Logger, partitions string) (bytes.Buffer, error) {
 		tx, err := db.Begin(ctx)
 		if err != nil {
 			return bytes.Buffer{}, err
@@ -79,9 +92,10 @@ func GetDataHisPricing(db *pgxpool.Pool) GetDataHisPricingFunc {
 				buy_price || ',' ||
 				sell_price || ',' ||
 				request_time
-				from his_pricing hp )
+				from his_pricing_%s hp )
 			`
 
+		sql = fmt.Sprintf(sql, partitions)
 		rows, err := tx.Query(ctx, sql)
 		defer rows.Close()
 
@@ -91,7 +105,7 @@ func GetDataHisPricing(db *pgxpool.Pool) GetDataHisPricingFunc {
 		csvBuffer := &bytes.Buffer{}
 		csvWriter := csv.NewWriter(csvBuffer)
 		for rows.Next() {
-			startProcess := time.Now()
+			//startProcess := time.Now()
 			var temp string
 			err := rows.Scan(&temp)
 			if err != nil {
@@ -100,20 +114,19 @@ func GetDataHisPricing(db *pgxpool.Pool) GetDataHisPricingFunc {
 			fields := strings.Split(temp, ",")
 			_ = csvWriter.Write(fields)
 			i++
-			if i%200000 == 0 {
-				duration := time.Since(startProcess)
-				logger.Debug("time use : ", zap.Any(strconv.Itoa(i), duration.Seconds()))
-				//fmt.Print(i, " time use:", duration.Seconds(), "s  ")
-			}
+			//if i%200000 == 0 {
+			//	duration := time.Since(startProcess)
+			//	logger.Debug("time use : ", zap.Any(strconv.Itoa(i), duration.Seconds()))
+			//	//fmt.Print(i, " time use:", duration.Seconds(), "s  ")
+			//}
 		}
 
 		csvWriter.Flush()
-
 		zipBuffer := &bytes.Buffer{}
-
 		zipWriter := zip.NewWriter(zipBuffer)
 
-		csvFile, err := zipWriter.Create("his_pricing.csv")
+		csvFileName := fmt.Sprintf("his_pricing_%s.csv", partitions)
+		csvFile, err := zipWriter.Create(csvFileName)
 		if err != nil {
 			logger.Error("Error creating CSV file in zip archive:", zap.Error(err))
 			return bytes.Buffer{}, err
@@ -129,9 +142,12 @@ func GetDataHisPricing(db *pgxpool.Pool) GetDataHisPricingFunc {
 			logger.Error("Error closing zip archive:", zap.Error(err))
 			return bytes.Buffer{}, err
 		}
-
 		duration := time.Since(start)
-		fmt.Print("\n end time use:", duration.Seconds(), "s  ")
+
+		defer func() {
+			csvBuffer.Reset()
+		}()
+		logger.Info(fmt.Sprintf("his_pricing_%s time to use : %s s", partitions, duration.Seconds()))
 		return *zipBuffer, nil
 	}
 
