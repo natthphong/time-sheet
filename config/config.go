@@ -116,6 +116,9 @@ type AWSConfig struct {
 func InitConfig() (*Config, error) {
 
 	env := os.Getenv("ENV")
+	if env == "" {
+		env = "LOCAL"
+	}
 	viper.SetDefault("ENV", env)
 	viper.SetDefault("EnableS3", os.Getenv("enableS3"))
 	viper.SetDefault("SERVER.NAME", "his_pricing")

@@ -19,31 +19,42 @@ import (
 func BackUpHisPricing(
 	GetDataHisPricingFunc GetDataHisPricingFunc,
 	PushToS3Func PushToS3Func,
+	DetachPartitionHistoryFunc DetachPartitionHistoryFunc,
 ) error {
 	logger := logz.NewLogger()
 	ctx := context.Background()
 	_ = ctx
-	currentDate, err := time.Parse("2006/01", "2023/02")
-	for i := 0; i < 11; i++ {
-		tempCurrentDate := currentDate.AddDate(0, i, 0)
-		if err != nil {
-			logger.Error("Error Parse date ", zap.Any("", err.Error()))
-			return err
-		}
-		partitions := tempCurrentDate.Format("y2006m01")
-		zipFile, err := GetDataHisPricingFunc(ctx, logger, partitions)
-		if err != nil {
-			logger.Error("Error GetDataHisPricingFunc", zap.Any("", err.Error()))
-			return err
-		}
-		err = PushToS3Func(ctx, logger, zipFile, partitions)
-		if err != nil {
-			logger.Error("Error PushToS3Func", zap.Any("", err.Error()))
-			return err
-		}
+	currentDate := time.Now()
+	tempCurrentDate := currentDate.AddDate(0, -1, 0)
+	partitions := tempCurrentDate.Format("y2006m01")
+	zipFile, err := GetDataHisPricingFunc(ctx, logger, partitions)
+	if err != nil {
+		logger.Error("Error GetDataHisPricingFunc", zap.Any("", err.Error()))
+		return err
 	}
-
+	err = PushToS3Func(ctx, logger, zipFile, partitions)
+	if err != nil {
+		logger.Error("Error PushToS3Func", zap.Any("", err.Error()))
+		return err
+	}
+	//err = DetachPartitionHistoryFunc(ctx, logger, partitions)
+	//
+	//if err != nil {
+	//	logger.Error("Error DetachPartitionHistoryFunc", zap.Any("", err.Error()))
+	//	return err
+	//}
 	return nil
+}
+
+type DetachPartitionHistoryFunc func(ctx context.Context, logger *zap.Logger, partition string) error
+
+func DetachPartitionHistory(db *pgxpool.Pool) DetachPartitionHistoryFunc {
+	return func(ctx context.Context, logger *zap.Logger, partition string) error {
+		sql := `ALTER TABLE his_pricing DETACH PARTITION his_pricing_%s;`
+		sql = fmt.Sprintf(sql, partition)
+		_, err := db.Exec(ctx, sql)
+		return err
+	}
 }
 
 type PushToS3Func func(ctx context.Context, logger *zap.Logger, zipFile bytes.Buffer, partitions string) error

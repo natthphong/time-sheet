@@ -15,12 +15,18 @@ import (
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/job"
 	"go.uber.org/zap"
 	"log"
+	"os"
 )
 
 func main() {
 
-	lambda.Start(LambdaHandler)
-	//LambdaHandler()
+	env := os.Getenv("ENV")
+	if env == "" {
+		LambdaHandler()
+	} else {
+		lambda.Start(LambdaHandler)
+	}
+
 }
 
 func LambdaHandler() {
@@ -93,6 +99,7 @@ func LambdaHandler() {
 	err = job.BackUpHisPricing(
 		job.GetDataHisPricing(dbPool),
 		job.PushToS3(svc, cfg),
+		job.DetachPartitionHistory(dbPool),
 	)
 	if err != nil {
 		panic(err)
