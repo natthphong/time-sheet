@@ -26,7 +26,7 @@ func BackUpHisPricing(
 	_ = ctx
 	currentDate := time.Now()
 	tempCurrentDate := currentDate.AddDate(0, -1, 0)
-	partitions := tempCurrentDate.Format("y2006m01")
+	partitions := tempCurrentDate.Format("_y2006m01")
 	zipFile, err := GetDataHisPricingFunc(ctx, logger, partitions)
 	if err != nil {
 		logger.Error("Error GetDataHisPricingFunc", zap.Any("", err.Error()))
@@ -37,12 +37,12 @@ func BackUpHisPricing(
 		logger.Error("Error PushToS3Func", zap.Any("", err.Error()))
 		return err
 	}
-	//err = DetachPartitionHistoryFunc(ctx, logger, partitions)
-	//
-	//if err != nil {
-	//	logger.Error("Error DetachPartitionHistoryFunc", zap.Any("", err.Error()))
-	//	return err
-	//}
+	err = DetachPartitionHistoryFunc(ctx, logger, partitions)
+
+	if err != nil {
+		logger.Error("Error DetachPartitionHistoryFunc", zap.Any("", err.Error()))
+		return err
+	}
 	return nil
 }
 
@@ -50,8 +50,7 @@ type DetachPartitionHistoryFunc func(ctx context.Context, logger *zap.Logger, pa
 
 func DetachPartitionHistory(db *pgxpool.Pool) DetachPartitionHistoryFunc {
 	return func(ctx context.Context, logger *zap.Logger, partition string) error {
-		sql := `ALTER TABLE his_pricing DETACH PARTITION his_pricing_%s;`
-		sql = fmt.Sprintf(sql, partition)
+		sql := `truncate table his_pricing`
 		_, err := db.Exec(ctx, sql)
 		return err
 	}
@@ -103,10 +102,9 @@ func GetDataHisPricing(db *pgxpool.Pool) GetDataHisPricingFunc {
 				buy_price || ',' ||
 				sell_price || ',' ||
 				request_time
-				from his_pricing_%s hp )
+				from his_pricing hp )
 			`
 
-		sql = fmt.Sprintf(sql, partitions)
 		rows, err := tx.Query(ctx, sql)
 		defer rows.Close()
 
@@ -136,7 +134,7 @@ func GetDataHisPricing(db *pgxpool.Pool) GetDataHisPricingFunc {
 		zipBuffer := &bytes.Buffer{}
 		zipWriter := zip.NewWriter(zipBuffer)
 
-		csvFileName := fmt.Sprintf("his_pricing_%s.csv", partitions)
+		csvFileName := fmt.Sprintf("his_pricing%s.csv", partitions)
 		csvFile, err := zipWriter.Create(csvFileName)
 		if err != nil {
 			logger.Error("Error creating CSV file in zip archive:", zap.Error(err))
@@ -158,7 +156,7 @@ func GetDataHisPricing(db *pgxpool.Pool) GetDataHisPricingFunc {
 		defer func() {
 			csvBuffer.Reset()
 		}()
-		logger.Info(fmt.Sprintf("his_pricing_%s time to use : %s s", partitions, duration.Seconds()))
+		logger.Info(fmt.Sprintf("his_pricing%s time to use : %s s", partitions, duration.Seconds()))
 		return *zipBuffer, nil
 	}
 

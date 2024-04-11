@@ -145,7 +145,7 @@ func InitConfig() (*Config, error) {
 		viper.SetDefault("DBCONFIG.Port", "5432")
 		viper.SetDefault("DBCONFIG.Username", "ibm_app")
 		viper.SetDefault("DBCONFIG.Password", "[Q]sb3pl*7r*xa7]")
-		viper.SetDefault("S3Config.Key", os.Getenv("his_pricing/his_pricing_%s.zip"))
+		viper.SetDefault("S3Config.Key", "his_pricing/his_pricing%s.zip")
 		viper.SetDefault("S3Config.BucketName", "poc-sync-app")
 	} else {
 		viper.SetDefault("DBCONFIG.Host", os.Getenv("dbHost"))
