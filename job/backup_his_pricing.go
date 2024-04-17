@@ -12,6 +12,8 @@ import (
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/config"
 	"gitlab.com/prior-solution/aurora/standard-platform/common/reconcile_daily_batch/internal/logz"
 	"go.uber.org/zap"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -21,28 +23,67 @@ func BackUpHisPricing(
 	PushToS3Func PushToS3Func,
 	DetachPartitionHistoryFunc DetachPartitionHistoryFunc,
 ) error {
+
 	logger := logz.NewLogger()
 	ctx := context.Background()
 	_ = ctx
-	currentDate := time.Now()
-	tempCurrentDate := currentDate.AddDate(0, -1, 0)
-	partitions := tempCurrentDate.Format("_y2006m01")
-	zipFile, err := GetDataHisPricingFunc(ctx, logger, partitions)
-	if err != nil {
-		logger.Error("Error GetDataHisPricingFunc", zap.Any("", err.Error()))
-		return err
-	}
-	err = PushToS3Func(ctx, logger, zipFile, partitions)
-	if err != nil {
-		logger.Error("Error PushToS3Func", zap.Any("", err.Error()))
-		return err
-	}
-	err = DetachPartitionHistoryFunc(ctx, logger, partitions)
+	startPartition := os.Getenv("startPartition")
+	//startPartition := "2024-04-01"
+	if startPartition == "" {
+		currentDate := time.Now()
+		tempCurrentDate := currentDate.AddDate(0, -1, 0)
+		partitions := tempCurrentDate.Format("_y2006m01")
+		zipFile, err := GetDataHisPricingFunc(ctx, logger, partitions)
+		if err != nil {
+			logger.Error("Error GetDataHisPricingFunc", zap.Any("", err.Error()))
+			return err
+		}
+		err = PushToS3Func(ctx, logger, zipFile, partitions)
+		if err != nil {
+			logger.Error("Error PushToS3Func", zap.Any("", err.Error()))
+			return err
+		}
+		err = DetachPartitionHistoryFunc(ctx, logger, partitions)
 
-	if err != nil {
-		logger.Error("Error DetachPartitionHistoryFunc", zap.Any("", err.Error()))
-		return err
+		if err != nil {
+			logger.Error("Error DetachPartitionHistoryFunc", zap.Any("", err.Error()))
+			return err
+		}
+	} else {
+		numStr := os.Getenv("numOfMonth")
+		//numStr := "1"
+		num, err := strconv.Atoi(numStr)
+		if err != nil {
+			logger.Error("Error parsing date:", zap.Error(err))
+		}
+		layout := "2006-01-02"
+		currentDate, err := time.Parse(layout, startPartition)
+		if err != nil {
+			logger.Error("Error parsing date:", zap.Error(err))
+		}
+		for i := 0; i < num; i++ {
+			tempCurrentDate := currentDate.AddDate(0, i, 0)
+			partitions := tempCurrentDate.Format("_y2006m01")
+			zipFile, err := GetDataHisPricingFunc(ctx, logger, partitions)
+			if err != nil {
+				logger.Error("Error GetDataHisPricingFunc", zap.Any("", err.Error()))
+				return err
+			}
+			err = PushToS3Func(ctx, logger, zipFile, partitions)
+			if err != nil {
+				logger.Error("Error PushToS3Func", zap.Any("", err.Error()))
+				return err
+			}
+			err = DetachPartitionHistoryFunc(ctx, logger, partitions)
+
+			if err != nil {
+				logger.Error("Error DetachPartitionHistoryFunc", zap.Any("", err.Error()))
+				return err
+			}
+		}
+
 	}
+
 	return nil
 }
 
@@ -50,7 +91,9 @@ type DetachPartitionHistoryFunc func(ctx context.Context, logger *zap.Logger, pa
 
 func DetachPartitionHistory(db *pgxpool.Pool) DetachPartitionHistoryFunc {
 	return func(ctx context.Context, logger *zap.Logger, partition string) error {
-		sql := `truncate table his_pricing`
+		//sql := `truncate table his_pricing`
+		sql := `ALTER TABLE his_pricing DETACH PARTITION his_pricing%s;`
+		sql = fmt.Sprintf(sql, partition)
 		_, err := db.Exec(ctx, sql)
 		return err
 	}
@@ -102,8 +145,10 @@ func GetDataHisPricing(db *pgxpool.Pool) GetDataHisPricingFunc {
 				buy_price || ',' ||
 				sell_price || ',' ||
 				request_time
-				from his_pricing hp )
+				from his_pricing%s hp )
 			`
+
+		sql = fmt.Sprintf(sql, partitions)
 
 		rows, err := tx.Query(ctx, sql)
 		defer rows.Close()
