@@ -43,7 +43,7 @@ func BackUpHisPricing(
 			logger.Error("Error PushToS3Func", zap.Any("", err.Error()))
 			return err
 		}
-		err = DetachPartitionHistoryFunc(ctx, logger, partitions)
+		err = DetachPartitionHistoryFunc(ctx, logger, "")
 
 		if err != nil {
 			logger.Error("Error DetachPartitionHistoryFunc", zap.Any("", err.Error()))
@@ -74,12 +74,13 @@ func BackUpHisPricing(
 				logger.Error("Error PushToS3Func", zap.Any("", err.Error()))
 				return err
 			}
-			err = DetachPartitionHistoryFunc(ctx, logger, partitions)
 
-			if err != nil {
-				logger.Error("Error DetachPartitionHistoryFunc", zap.Any("", err.Error()))
-				return err
-			}
+		}
+		err = DetachPartitionHistoryFunc(ctx, logger, "")
+
+		if err != nil {
+			logger.Error("Error DetachPartitionHistoryFunc", zap.Any("", err.Error()))
+			return err
 		}
 
 	}
@@ -91,9 +92,9 @@ type DetachPartitionHistoryFunc func(ctx context.Context, logger *zap.Logger, pa
 
 func DetachPartitionHistory(db *pgxpool.Pool) DetachPartitionHistoryFunc {
 	return func(ctx context.Context, logger *zap.Logger, partition string) error {
-		//sql := `truncate table his_pricing`
-		sql := `ALTER TABLE his_pricing DETACH PARTITION his_pricing%s;`
-		sql = fmt.Sprintf(sql, partition)
+		sql := `truncate table his_pricing`
+		//sql := `ALTER TABLE his_pricing DETACH PARTITION his_pricing%s;`
+		//sql = fmt.Sprintf(sql, partition)
 		_, err := db.Exec(ctx, sql)
 		return err
 	}
