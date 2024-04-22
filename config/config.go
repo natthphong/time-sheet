@@ -139,23 +139,13 @@ func InitConfig() (*Config, error) {
 	viper.SetDefault("DBCONFIG.MAXOPENCONN", "4")
 	viper.SetDefault("DBCONFIG.MAXCONNLIFETIME", "300")
 
-	if env == "LOCAL" {
-		viper.SetDefault("DBCONFIG.Host", "aurora-nonprod-iam-db.cberwwykerv8.ap-southeast-1.rds.amazonaws.com")
-		viper.SetDefault("DBCONFIG.Name", "iam_db")
-		viper.SetDefault("DBCONFIG.Port", "5432")
-		viper.SetDefault("DBCONFIG.Username", "ibm_app")
-		viper.SetDefault("DBCONFIG.Password", "[Q]sb3pl*7r*xa7]")
-		viper.SetDefault("S3Config.Key", "his_pricing/his_pricing%s.zip")
-		viper.SetDefault("S3Config.BucketName", "poc-sync-app")
-	} else {
-		viper.SetDefault("DBCONFIG.Host", os.Getenv("dbHost"))
-		viper.SetDefault("DBCONFIG.Name", os.Getenv("dbName"))
-		viper.SetDefault("DBCONFIG.Port", "5432")
-		viper.SetDefault("DBCONFIG.Username", os.Getenv("dbUserName"))
-		viper.SetDefault("DBCONFIG.Password", os.Getenv("dbPassword"))
-		viper.SetDefault("S3Config.Key", os.Getenv("keyBucket"))
-		viper.SetDefault("S3Config.BucketName", os.Getenv("bucketName"))
-	}
+	viper.SetDefault("DBCONFIG.Host", "aurora-nonprod-iam-db.cberwwykerv8.ap-southeast-1.rds.amazonaws.com")
+	viper.SetDefault("DBCONFIG.Name", "iam_db")
+	viper.SetDefault("DBCONFIG.Port", "5432")
+	viper.SetDefault("DBCONFIG.Username", "ibm_app")
+	viper.SetDefault("DBCONFIG.Password", "[Q]sb3pl*7r*xa7]")
+	viper.SetDefault("S3Config.Key", "his_pricing/his_pricing%s.zip")
+	viper.SetDefault("S3Config.BucketName", "poc-sync-app")
 
 	//viper.SetDefault("REDISCONFIG.MODE", os.Getenv("redisMode"))
 	//viper.SetDefault("REDISCONFIG.HOST", os.Getenv("redisHost"))
