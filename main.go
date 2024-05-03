@@ -19,13 +19,14 @@ import (
 )
 
 func main() {
-
 	env := os.Getenv("ENV")
 	if env == "" {
+		fmt.Println("LOCAL")
 		LambdaHandler()
 	} else {
 		lambda.Start(LambdaHandler)
 	}
+	//lambda.Start(LambdaHandler)
 
 }
 
@@ -67,7 +68,7 @@ func LambdaHandler() {
 		logger.Fatal("server connect to db", zap.Error(err))
 	}
 	defer dbPool.Close()
-
+	logger.Info("DB CONNECT")
 	//redisClient, err := cache.Initialize(ctx, cfg.RedisConfig)
 	//if err != nil {
 	//	log.Fatal(errors.Wrap(err, "Error cannot connect redis."))
@@ -95,13 +96,14 @@ func LambdaHandler() {
 	}
 	svc := s3.New(sess)
 	_ = svc
-
+	logger.Info("S3 CONNECT")
 	err = job.BackUpHisPricing(
 		job.GetDataHisPricing(dbPool),
 		job.PushToS3(svc, cfg),
 		job.DetachPartitionHistory(dbPool),
 	)
 	if err != nil {
+		logger.Error("error", zap.Error(err))
 		panic(err)
 	}
 

@@ -96,7 +96,10 @@ func DetachPartitionHistory(db *pgxpool.Pool) DetachPartitionHistoryFunc {
 		//sql := `ALTER TABLE his_pricing DETACH PARTITION his_pricing%s;`
 		//sql = fmt.Sprintf(sql, partition)
 		_, err := db.Exec(ctx, sql)
-		return err
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 }
 
